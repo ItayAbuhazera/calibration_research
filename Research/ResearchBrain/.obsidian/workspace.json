@@ -1,0 +1,215 @@
+{
+  "main": {
+    "id": "513d481c8ae2271b",
+    "type": "split",
+    "children": [
+      {
+        "id": "737d56519985fccb",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "1f36708e69a71b5b",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Graph view"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "033770453f5f8744",
+    "type": "split",
+    "children": [
+      {
+        "id": "e7ba3f771b859c84",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "4dec35687915aca5",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "e843c68fccc06f73",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "47505565760d1bc1",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "19168e9523f0129c",
+    "type": "split",
+    "children": [
+      {
+        "id": "afd1ebc4c3cb7b75",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "583810ceba5994ce",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks"
+            }
+          },
+          {
+            "id": "0caa42f4147fb467",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links"
+            }
+          },
+          {
+            "id": "32190ea0f01f8ae2",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "8e258d8feafa8753",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "734075d4f7e05a12",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "1f36708e69a71b5b",
+  "lastOpenFiles": [
+    "01_Papers/Conceptual Prior Art - Local Competence and Reliability Routing.md",
+    "01_Papers/Semantic Geometric Calibration in Randomized Neural Feature Space.md",
+    "01_Papers/Uncertainty Estimation Based on Geometric Separation.md",
+    "01_Papers/Transitional Uncertainty with Layered Intermediate Predictions.md",
+    "01_Papers/To Trust Or Not To Trust A Classifier.md",
+    "01_Papers/Taking a Step Back with KCal.md",
+    "01_Papers/SelectiveNet.md",
+    "01_Papers/On Calibration of Modern Neural Networks.md",
+    "01_Papers/Deep k-Nearest Neighbors.md",
+    "01_Papers/Conformal Risk Control.md",
+    "01_Papers/Beyond Temperature Scaling - Dirichlet Calibration.md",
+    "01_Papers/Beyond In-Domain Scenarios - Robust Density-Aware Calibration.md",
+    "01_Papers/Benchmarking Neural Network Robustness to Common Corruptions.md",
+    "01_Papers/A Simple Unified Framework for OOD and Adversarial Detection.md",
+    "01_Papers/00 Paper Map - Geometric Uncertainty to Actionable Confidence.md",
+    "04_Hypotheses/H-RGC-02 Richer representation features predict geometric reliability.md",
+    "04_Hypotheses/H-RGC-01 Reliability mapping shifts under corruption.md",
+    "09_Benchmarks/CIFAR-C.md",
+    "07_Killed_Ideas/GC-DAC confidence-gated anchoring on CIFAR-100.md",
+    "06_Ideas/Predicting geometric reliability under distribution shift.md",
+    "05_Experiments/2026-04-25 CIFAR10 ResNet18 Full-Vector Path Batch.md",
+    "09_Benchmarks",
+    "05_Experiments/2026-06-21 Decision-Improving Calibration Pilot.md",
+    "05_Experiments/2026-04-27 TinyImageNet ResNet50 Full-Vector Path Batch.md",
+    "05_Experiments/2026-04-26 Post-Fusion Top-Isotonic Smoke.md",
+    "05_Experiments/2026-04-25 CIFAR100 ResNet18 Full-Vector Path Batch.md",
+    "01_Papers/Beyond Confidence - Reliable Models Should Also Consider Atypicality.md",
+    "01_Papers"
+  ]
+}

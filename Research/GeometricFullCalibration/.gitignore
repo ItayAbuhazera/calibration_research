@@ -1,0 +1,83 @@
+# Data and large files
+data/cifar-*
+data/cifar-10-batches-py/
+data/cifar-10-python.tar.gz
+data/tiny-imagenet-200/
+data/*.npy
+data/*.npz
+
+# Logs and outputs
+logs/
+*.log
+*.out
+*.err
+results/
+# Model checkpoints (large)
+calibration_results/
+calibration_results_smoke/
+*.pth
+!results/models/baseline/baseline_cross_entropy/cifar10/resnet18/seed12/best_model.pth
+
+# Generated experiment artifacts (recoverability caches, exports, etc.)
+artifacts/
+exports/
+*.npz
+*.npy
+*.joblib
+*.pkl
+
+# Slurm job logs (job scripts under slurm_jobs/ are still tracked)
+slurm_jobs/_unified_benchmark_logs/
+
+# Archives / bundles
+*.zip
+*.tar.gz
+*.tar
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.ipynb_checkpoints/
+
+# IDE / OS
+.idea/
+.vscode/
+*.lock
+.DS_Store
+Thumbs.db
+*.swp
+
+# Secrets / local env
+.env
+.env.*
+
+# Scratch / exploratory
+scripts/
+!/scripts/
+/scripts/*
+!/scripts/export_recoverability.py
+!/scripts/aggregate_recoverability.py
+!/scripts/run_recoverability_seed.sbatch
+!/scripts/submit_recoverability.sh
+corruption_constellation_*/
+eclipse
+
+# Bundled conda environment (machine-specific)
+.conda/
+.local_tools/
+
+# Generated figures and tables
+*.png
+*.csv
+*.tex
+
+plans/*
+plans
+*.pdf

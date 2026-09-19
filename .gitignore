@@ -1,0 +1,67 @@
+# Model checkpoints and machine-learning artifacts
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.onnx
+*.npz
+*.npy
+*.pkl
+*.pickle
+
+# Images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tif
+*.tiff
+*.webp
+*.svg
+
+# Documents
+*.pdf
+
+# Generated outputs and logs
+logs/
+outputs/
+artifacts/
+checkpoints/
+wandb/
+tensorboard/
+*.log
+
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editors and operating-system metadata
+.vscode/
+.idea/
+.DS_Store
+
+# Local agent metadata
+.agents/
+.codex/
+
+# Preserved metadata from repositories flattened into this repository
+**/.git.nested-backup/
+Research/geometric/GeometricCalibration/data/ESC-50
+Research/geometric/GeometricCalibration/data/UrbanSound8K
+Research/geometric/GeometricCalibration/data/one
+Research/geometric/GeometricCalibration/data/gtsrb
+*.csv
+*.tar.gz

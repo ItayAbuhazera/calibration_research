@@ -1,0 +1,71 @@
+name: geo_calibration
+channels:
+  - conda-forge
+  - pytorch
+  - nvidia
+  - defaults
+dependencies:
+  # Core Python with modern version
+  - python=3.10
+  - pip>=23.0
+
+  # Scientific computing foundation
+  - numpy>=1.24.0
+  - scipy>=1.10.0
+  - pandas>=2.0.0
+  - scikit-learn>=1.2.2
+  - joblib>=1.2.0
+  
+  # Deep learning frameworks
+  - pytorch>=2.0.0  # Modern PyTorch
+  - pytorch-cuda=11.8  # CUDA support if needed
+  - torchvision>=0.15.0
+  - torchaudio>=2.0.0
+  
+  # High-performance search libraries
+  - faiss-gpu  # or faiss-cpu if no GPU
+  
+  # Visualization
+  - matplotlib>=3.7.0
+  - seaborn>=0.12.0
+  
+  # Data processing
+  - opencv>=4.7.0
+  - pillow>=9.4.0
+  - tqdm>=4.65.0
+  
+  # Development tools
+  - ipython
+  - jupyter
+  - pytest
+  - black
+  
+  # Add pip packages for specialized needs
+  - pip:
+      # Deep learning
+      - tensorflow>=2.12.0  # Latest compatible version
+      - tensorflow-probability>=0.19.0
+      - torchdr
+
+      # Vision models
+      - timm>=0.9.0  # Torch image models library
+      - transformers>=4.29.0  # Hugging Face models
+      
+      # Calibration-specific libraries
+      - netcal>=1.3.5
+      - uncertainty-calibration>=0.1.4
+      - uncertainty-toolbox>=0.1.1
+      
+      # Additional ML tools
+      - gpytorch>=1.10.0  # Gaussian processes
+      - xgboost>=1.7.5
+      - lightgbm>=3.3.5
+      - catboost>=1.2.0
+      
+      # For evaluation and metrics
+      - scikit-optimize>=0.9.0
+      - optuna>=3.2.0  # Hyperparameter optimization
+      
+      # Audio processing
+      - librosa>=0.10.0
+      - datasets>=2.12.0  # Hugging Face Datasets

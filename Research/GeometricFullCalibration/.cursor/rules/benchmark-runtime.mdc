@@ -1,0 +1,22 @@
+---
+description: Runtime and Slurm preferences for benchmark commands
+alwaysApply: true
+---
+
+# Benchmark Runtime Preferences
+
+- For Python commands that run project benchmark, experiment, or artifact-verification code, activate the project conda environment first:
+  `source "$(conda info --base)/etc/profile.d/conda.sh" && conda activate geo_cuda12`.
+- For unified benchmark runs that should use GPUs, prefer `Experiments/run_unified_benchmark_sbatch.py` over manually writing `sbatch` heredocs or running `Experiments/run_unified_benchmark.py` directly.
+- Use the sbatch helper's existing arguments for seed batches, output templates, conda env, GPU settings, and submission. Dry-run the helper first when constructing a new batch command, then submit with `--submit` after the command shape is verified.
+- Keep generated benchmark artifacts in a fresh output namespace unless the user explicitly asks to overwrite older outputs.
+
+## Pre-pilot full-feature smoke
+
+Before launching any multi-seed pilot run on a new dataset+model+feature
+combination, run exactly one single-seed end-to-end smoke with all
+intended features enabled, in a fresh output namespace, with no
+resume from prior runs. This catches latent bugs in code paths that
+incremental method-by-method runs may not exercise. Only after
+that smoke completes with exit 0:0 should the full multi-seed
+pilot be queued.
