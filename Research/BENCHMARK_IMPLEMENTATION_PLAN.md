@@ -676,6 +676,20 @@ proceeds — do not edit §1–14 in place.)*
    policy, no ResearchBrain conclusions were drawn from this run and its
    numbers must never be cited as calibration-quality evidence.
 
+8. **RGCC and GC-TULIP were unconditional legacy methods (2026-09-19).**
+   `Experiments/run_unified_benchmark.py` ran RGCC and GC-TULIP
+   unconditionally (GC-TULIP costs ~22 min/checkpoint). Neither is in the
+   frozen Phase 0/1 method set. Added `--disable_rgcc` and
+   `--disable_gc_tulip` (default off, so both remain enabled for
+   backward compatibility); Stage-2 completion requirements now include
+   each method only when its flag is not set. Both production Phase 0/1
+   runners (`scripts/phase0_1_fit_clean.sbatch`,
+   `scripts/phase0_1_evaluate_corruption.sbatch`) pass both flags to avoid
+   unnecessary compute. No method, hyperparameter, split, metric, or
+   fitted-state behavior changed; resume/checkpoint and fit-once/evaluate-many
+   semantics are preserved. Regression tests are in
+   `tests/test_fit_once_evaluate_many.py`.
+
 ---
 
 ## 17. Implementation checklist for a fresh session

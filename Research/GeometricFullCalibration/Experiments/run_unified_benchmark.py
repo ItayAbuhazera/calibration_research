@@ -2121,6 +2121,39 @@ def _stage_complete(progress: Dict[str, Any], stage: str) -> bool:
     return all(os.path.exists(p) for p in stage_files.values())
 
 
+def _stage2_required_methods(args: argparse.Namespace) -> List[str]:
+    """Methods whose checkpoints must be complete for stage2_early to count as done."""
+    required_methods = [
+        "base_model",
+        "temperature_scaling",
+        "vector_scaling",
+        "beta_calibration",
+        "ovr_isotonic",
+        "odir_dirichlet",
+        "rgcl",
+        "gc_dac",
+        "anchored_model_tail",
+    ]
+    if not getattr(args, "disable_rgcc", False):
+        required_methods.append("rgcc")
+    if not getattr(args, "disable_gc_tulip", False):
+        required_methods.append("gc_tulip")
+    if args.enable_rgcl_tail_hybrids:
+        requested_tail_sources = {
+            s.strip().lower() for s in args.rgcl_tail_sources.split(",") if s.strip()
+        }
+        tail_method_map = {
+            "base": "rgcl_tail_base",
+            "temperature_scaling": "rgcl_tail_temperature_scaling",
+            "vector_scaling": "rgcl_tail_vector_scaling",
+            "dirichlet": "rgcl_tail_dirichlet",
+        }
+        for k, v in tail_method_map.items():
+            if k in requested_tail_sources:
+                required_methods.append(v)
+    return required_methods
+
+
 def _args_fingerprint(args: argparse.Namespace) -> str:
     payload = {
         "dataset": args.dataset,
@@ -3362,6 +3395,22 @@ def main() -> None:
             "Saves ~50-65 GB per experiment while keeping per_sample, summary, and .pt files."
         ),
     )
+    parser.add_argument(
+        "--disable_rgcc",
+        action="store_true",
+        help=(
+            "Skip the legacy RGCC (coordinate calibration) method. Enabled by default "
+            "for backward compatibility; not part of the frozen Phase 0/1 method set."
+        ),
+    )
+    parser.add_argument(
+        "--disable_gc_tulip",
+        action="store_true",
+        help=(
+            "Skip the legacy GC-TULIP method (~22 min/checkpoint). Enabled by default "
+            "for backward compatibility; not part of the frozen Phase 0/1 method set."
+        ),
+    )
     _configure_default_method_flags(parser)
     args = parser.parse_args()
     _apply_disable_all_optional_methods(args)
@@ -3584,32 +3633,7 @@ def main() -> None:
             return False
         try:
             registry = _load_method_registry(args.output_dir)
-            required_methods = [
-                "base_model",
-                "temperature_scaling",
-                "vector_scaling",
-                "beta_calibration",
-                "ovr_isotonic",
-                "odir_dirichlet",
-                "rgcl",
-                "rgcc",
-                "gc_dac",
-                "anchored_model_tail",
-                "gc_tulip",
-            ]
-            if args.enable_rgcl_tail_hybrids:
-                requested_tail_sources = {
-                    s.strip().lower() for s in args.rgcl_tail_sources.split(",") if s.strip()
-                }
-                tail_method_map = {
-                    "base": "rgcl_tail_base",
-                    "temperature_scaling": "rgcl_tail_temperature_scaling",
-                    "vector_scaling": "rgcl_tail_vector_scaling",
-                    "dirichlet": "rgcl_tail_dirichlet",
-                }
-                for k, v in tail_method_map.items():
-                    if k in requested_tail_sources:
-                        required_methods.append(v)
+            required_methods = _stage2_required_methods(args)
             for m in required_methods:
                 if not _is_method_checkpoint_complete(args.output_dir, m, len(test_labels), num_classes):
                     return False
@@ -4309,7 +4333,9 @@ def main() -> None:
                 _cleanup_memory()
                 logger.info("[cleanup] released arrays after method: %s", hybrid_method_name)
 
-        if _is_method_checkpoint_complete(args.output_dir, "rgcc", len(test_labels), num_classes):
+        if args.disable_rgcc:
+            logger.info("Skipping method %s (--disable_rgcc)", "rgcc")
+        elif _is_method_checkpoint_complete(args.output_dir, "rgcc", len(test_labels), num_classes):
             logger.info("Skipping completed method %s", "rgcc")
         else:
             logger.info("[resume] method incomplete, recomputing: rgcc")
@@ -4384,7 +4410,9 @@ def main() -> None:
         _cleanup_memory()
         logger.info("[cleanup] released arrays after method: anchored_model_tail")
 
-        if _is_method_checkpoint_complete(args.output_dir, "gc_tulip", len(test_labels), num_classes):
+        if args.disable_gc_tulip:
+            logger.info("Skipping method %s (--disable_gc_tulip)", "gc_tulip")
+        elif _is_method_checkpoint_complete(args.output_dir, "gc_tulip", len(test_labels), num_classes):
             logger.info("Skipping completed method %s", "gc_tulip")
         else:
             logger.info("[resume] method incomplete, recomputing: gc_tulip")

@@ -81,6 +81,8 @@ cd "$PROJECT_ROOT"
     --disable_kcal_factorial \
     --disable_aar_lightweight \
     --disable_contrastive_beta_sweep \
+    --disable_rgcc \
+    --disable_gc_tulip \
     --enable_pts_baseline \
     --enable_trust_score_baseline \
     --enable_glad_pi \

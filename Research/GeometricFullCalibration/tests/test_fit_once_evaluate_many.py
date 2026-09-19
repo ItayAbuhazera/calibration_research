@@ -399,3 +399,62 @@ def test_native_dac_fit_features_stay_inside_deferred_closure():
     for name in ("native_dac_train_feats", "native_dac_val_feats"):
         assert name not in bound
         assert name not in {n for n, _ in deleted}
+
+
+# --------------------------------------------------------------------------
+# Legacy-method gating: RGCC / GC-TULIP are outside the frozen Phase 0/1 set
+# --------------------------------------------------------------------------
+def _stage2_args(**overrides):
+    base = dict(
+        disable_rgcc=False,
+        disable_gc_tulip=False,
+        enable_rgcl_tail_hybrids=False,
+        rgcl_tail_sources="base",
+    )
+    base.update(overrides)
+    return SimpleNamespace(**base)
+
+
+def test_stage2_required_methods_default_includes_legacy_methods():
+    from Experiments.run_unified_benchmark import _stage2_required_methods
+
+    required = _stage2_required_methods(_stage2_args())
+    assert "rgcc" in required and "gc_tulip" in required
+    # A Namespace predating the new flags stays backward-compatible.
+    legacy = _stage2_required_methods(
+        SimpleNamespace(enable_rgcl_tail_hybrids=False, rgcl_tail_sources="base")
+    )
+    assert "rgcc" in legacy and "gc_tulip" in legacy
+
+
+def test_stage2_required_methods_respects_disable_flags():
+    from Experiments.run_unified_benchmark import _stage2_required_methods
+
+    no_rgcc = _stage2_required_methods(_stage2_args(disable_rgcc=True))
+    assert "rgcc" not in no_rgcc and "gc_tulip" in no_rgcc
+    no_tulip = _stage2_required_methods(_stage2_args(disable_gc_tulip=True))
+    assert "gc_tulip" not in no_tulip and "rgcc" in no_tulip
+    both = _stage2_required_methods(_stage2_args(disable_rgcc=True, disable_gc_tulip=True))
+    for frozen in ("anchored_model_tail", "beta_calibration", "ovr_isotonic", "gc_dac", "rgcl"):
+        assert frozen in both
+    assert "rgcc" not in both and "gc_tulip" not in both
+
+
+def test_legacy_disable_flags_default_off_and_gate_execution():
+    src = (Path(__file__).resolve().parents[1] / "Experiments" / "run_unified_benchmark.py").read_text()
+    for flag in ("--disable_rgcc", "--disable_gc_tulip"):
+        i = src.index(f'"{flag}"')
+        assert 'action="store_true"' in src[i : i + 80]  # default False -> enabled
+    # Execution blocks are guarded by the flags.
+    assert "if args.disable_rgcc:" in src
+    assert "if args.disable_gc_tulip:" in src
+    assert src.index("if args.disable_rgcc:") < src.index("rgcc = run_coordinate_calibration(")
+    assert src.index("if args.disable_gc_tulip:") < src.index("gc_tulip = _run_geo_cal_function_fit_once(")
+
+
+def test_phase0_1_runners_disable_legacy_methods():
+    scripts_dir = Path(__file__).resolve().parents[1] / "scripts"
+    for script_name in ("phase0_1_fit_clean.sbatch", "phase0_1_evaluate_corruption.sbatch"):
+        script = (scripts_dir / script_name).read_text()
+        assert "--disable_rgcc" in script
+        assert "--disable_gc_tulip" in script
