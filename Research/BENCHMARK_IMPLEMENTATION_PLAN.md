@@ -714,3 +714,27 @@ A session with no memory of this conversation can execute this plan by:
 
 STOP. Do not implement anything beyond writing this file until it is
 explicitly approved.
+
+### 2026-09-19 — Phase 0/1 runner selection and fitted-state provenance fixes
+
+6. **Phase 0/1 production runners accidentally disabled their intended optional methods.**
+   `scripts/phase0_1_fit_clean.sbatch` and
+   `scripts/phase0_1_evaluate_corruption.sbatch` passed
+   `--disable_all_optional_methods` together with individual `--enable_*`
+   flags for PTS, Trust Score, GLAD-PI, GLAD-PI zero-geometry,
+   Mahalanobis confidence, and full KCal. The unified benchmark applies
+   `--disable_all_optional_methods` after argument parsing and therefore
+   forced all of those families back to disabled. The production runners
+   were corrected to explicitly disable only the unrelated default-on
+   families while explicitly enabling the intended Phase 0/1 methods.
+   This is an implementation correction to match the frozen method list,
+   not a change to the scientific design.
+
+7. **Clean-run fitted-state provenance was initially written before fitting completed.**
+   `fit_once_provenance.json` was written near startup, so on a clean run
+   its `fitted_state_hash` could describe an empty or partially populated
+   fitted-state directory. A final provenance rewrite is now performed
+   after successful `stage4_late_outputs` completion, so the clean run
+   records the hash of the fully persisted frozen fitted state. Corruption
+   runs retain the same structural no-refit guard and rewrite the same
+   unchanged frozen-state hash after evaluation.

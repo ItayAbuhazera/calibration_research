@@ -292,6 +292,57 @@ def test_write_fit_once_provenance_records_required_fields(tmp_path):
     assert prov["clean_fitting_split"]["checkpoint_seed"] == 1
 
 
+def test_write_fit_once_provenance_rewrites_final_fitted_state_hash(tmp_path):
+    state_dir = tmp_path / "fitted"
+    state_dir.mkdir()
+    output_dir = tmp_path / "clean"
+    args = SimpleNamespace(
+        corruption_type=None, corruption_severity=None, fitted_state_dir=str(state_dir),
+        output_dir=str(output_dir), dataset="cifar100", model="resnet101", method="baseline_cross_entropy",
+        seed=1, num_layers=6, target_dimension=256, batch_size=64,
+    )
+
+    _write_fit_once_provenance(args)
+    import json
+    with open(output_dir / "fit_once_provenance.json") as f:
+        pre_fit_hash = json.load(f)["fitted_state_hash"]
+
+    obj = _DummyCalibrator()
+    _fit_or_load_state(_args(tmp_path, fitted_state_dir=state_dir), "temperature_scaling", obj, lambda: obj.fit(1.0))
+    _write_fit_once_provenance(args)
+    with open(output_dir / "fit_once_provenance.json") as f:
+        final_hash = json.load(f)["fitted_state_hash"]
+
+    assert final_hash == _fitted_state_dir_hash(str(state_dir))
+    assert final_hash != pre_fit_hash
+
+
+def test_phase0_1_runners_select_only_intended_optional_methods():
+    scripts_dir = Path(__file__).resolve().parents[1] / "scripts"
+    expected_flags = {
+        "--disable_post_fusion_temperature",
+        "--disable_rgcl_tail_hybrids",
+        "--disable_full_vector_geometric_fusion",
+        "--disable_knn_blend_baseline",
+        "--disable_kcal_lite_baseline",
+        "--disable_rgcl_neighbor_correction",
+        "--disable_kcal_factorial",
+        "--disable_aar_lightweight",
+        "--disable_contrastive_beta_sweep",
+        "--enable_pts_baseline",
+        "--enable_trust_score_baseline",
+        "--enable_glad_pi",
+        "--enable_glad_pi_zero_geometry",
+        "--enable_mahalanobis_confidence",
+        "--enable_kcal_baseline",
+    }
+    for script_name in ("phase0_1_fit_clean.sbatch", "phase0_1_evaluate_corruption.sbatch"):
+        script = (scripts_dir / script_name).read_text()
+        assert "--disable_all_optional_methods" not in script
+        for flag in expected_flags:
+            assert flag in script
+
+
 # --------------------------------------------------------------------------
 # Regression: job 21392517 UnboundLocalError on native_dac_train_feats
 # --------------------------------------------------------------------------

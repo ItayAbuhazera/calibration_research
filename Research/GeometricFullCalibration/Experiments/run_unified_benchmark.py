@@ -8092,6 +8092,10 @@ def main() -> None:
             "per_sample_npz": per_sample_npz_path,
         },
     )
+    # The initial write records the frozen state before evaluation. Rewriting
+    # after successful completion makes a clean run record every persisted
+    # fitted calibrator artifact as well.
+    _write_fit_once_provenance(args)
     del method_probs_by_name, method_can_change_argmax_for_npz
     _cleanup_memory()
 
