@@ -3786,9 +3786,15 @@ def main() -> None:
                 stage_name="stage2_early",
             )
             logger.info("Saved method checkpoint: %s", "gc_dac")
-            _save_npy(stage2_files["gc_dac_probs"], gc_dac_probs)
-            _save_npy(stage2_files["gc_dac_top_idx_test"], gc_dac_test_top_idx.astype(np.int64))
-            _save_npy(stage2_files["gc_dac_anchor_ct_test"], gc_dac_test_anchor_ct.astype(np.float64))
+            _save_npy_atomic(stage2_files["gc_dac_probs"], gc_dac_probs)
+            _save_npy_atomic(
+                stage2_files["gc_dac_top_idx_test"],
+                gc_dac_test_top_idx.astype(np.int64),
+            )
+            _save_npy_atomic(
+                stage2_files["gc_dac_anchor_ct_test"],
+                gc_dac_test_anchor_ct.astype(np.float64),
+            )
             del gc_dac, gc_dac_entry
             _cleanup_memory()
             logger.info("[cleanup] released arrays after method: gc_dac")
@@ -4455,11 +4461,16 @@ def main() -> None:
         _cleanup_memory()
         logger.info("[cleanup] released arrays after method: gc_tulip")
 
-        _save_npy(stage2_files["base_probs_test"], base_probs_test)
-        _save_npy(stage2_files["gc_dac_probs"], np.asarray(gc_dac_probs))
-        _save_npy(stage2_files["gc_dac_top_idx_test"], np.asarray(gc_dac_test_top_idx).astype(np.int64))
-        _save_npy(stage2_files["gc_dac_anchor_ct_test"], np.asarray(gc_dac_test_anchor_ct).astype(np.float64))
-
+        _save_npy_atomic(stage2_files["base_probs_test"], base_probs_test)
+        _save_npy_atomic(stage2_files["gc_dac_probs"], np.asarray(gc_dac_probs))
+        _save_npy_atomic(
+            stage2_files["gc_dac_top_idx_test"],
+            np.asarray(gc_dac_test_top_idx).astype(np.int64),
+        )
+        _save_npy_atomic(
+            stage2_files["gc_dac_anchor_ct_test"],
+            np.asarray(gc_dac_test_anchor_ct).astype(np.float64),
+        )
         registry = _load_method_registry(args.output_dir)
         methods_so_far = _load_all_method_entries_in_order(args.output_dir)
         _atomic_write_json(stage2_files["methods_so_far"], {"methods": methods_so_far})
