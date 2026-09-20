@@ -458,3 +458,53 @@ def test_phase0_1_runners_disable_legacy_methods():
         script = (scripts_dir / script_name).read_text()
         assert "--disable_rgcc" in script
         assert "--disable_gc_tulip" in script
+
+
+def test_fitted_state_dir_hash_covers_pt_files(tmp_path):
+    state_dir = tmp_path / "fitted"
+    state_dir.mkdir()
+    (state_dir / "method_a.pkl").write_bytes(b"pkl")
+    (state_dir / "kcal_calibrator.pt").write_bytes(b"weights-v1")
+    h1 = _fitted_state_dir_hash(str(state_dir))
+    (state_dir / "kcal_calibrator.pt").write_bytes(b"weights-v2")
+    h2 = _fitted_state_dir_hash(str(state_dir))
+    assert h1 != h2
+    (state_dir / "notes.txt").write_text("ignored")
+    assert _fitted_state_dir_hash(str(state_dir)) == h2
+
+
+def test_git_provenance_reports_dirty_tracked_tree_only(tmp_path):
+    import subprocess
+    from Experiments.run_unified_benchmark import _git_provenance
+
+    def git(*a):
+        subprocess.check_call(["git", *a], cwd=tmp_path, stdout=subprocess.DEVNULL)
+
+    git("init", "-q")
+    git("config", "user.email", "t@example.com")
+    git("config", "user.name", "t")
+    (tmp_path / "tracked.txt").write_text("a")
+    git("add", "tracked.txt")
+    git("commit", "-q", "-m", "init")
+
+    clean = _git_provenance(str(tmp_path))
+    assert clean["git_dirty"] is False and clean["git_diff_hash"] is None
+    assert len(clean["git_commit"]) == 40
+
+    (tmp_path / "untracked_artifact.npy").write_bytes(b"x")
+    assert _git_provenance(str(tmp_path))["git_dirty"] is False
+
+    (tmp_path / "tracked.txt").write_text("b")
+    d1 = _git_provenance(str(tmp_path))
+    assert d1["git_dirty"] is True and d1["git_diff_hash"]
+    assert d1["git_commit"] == clean["git_commit"]
+    assert _git_provenance(str(tmp_path))["git_diff_hash"] == d1["git_diff_hash"]
+    (tmp_path / "tracked.txt").write_text("c")
+    assert _git_provenance(str(tmp_path))["git_diff_hash"] != d1["git_diff_hash"]
+
+
+def test_git_provenance_outside_repo_is_unknown(tmp_path):
+    from Experiments.run_unified_benchmark import _git_provenance
+
+    out = _git_provenance(str(tmp_path))
+    assert out == {"git_commit": None, "git_dirty": None, "git_diff_hash": None}

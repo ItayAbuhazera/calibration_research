@@ -1,0 +1,3 @@
+/home/itayab/PyCharmProjects/Research/geometric/GeometricInternalCalibration/GeometricInternalCalibration/aaai_full_experiments/results/baseline/baseline_cross_entropy/cifar100/resnet101/seed4/best_model.pth bytes=171419056 secs=.112734590
+/groups/cliron_group/itayab/calibration_research/Research/GeometricFullCalibration/data/cifar-100-python/train bytes=155249918 secs=.096278384
+/groups/cliron_group/itayab/calibration_research/Research/GeometricFullCalibration/data/cifar-100-python/test bytes=31049707 secs=.025237948

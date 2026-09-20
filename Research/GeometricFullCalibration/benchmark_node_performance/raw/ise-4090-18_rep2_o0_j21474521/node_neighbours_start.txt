@@ -1,0 +1,2 @@
+21474521 itayab 8 gres/gpu:rtx_4090:1
+21471836_4 zexer 10 N/A

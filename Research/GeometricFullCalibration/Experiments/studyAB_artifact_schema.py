@@ -17,49 +17,26 @@ import hashlib
 import json
 from typing import Any, Dict, Optional
 
+from utils.method_metadata import (
+    metric_bucket_for_method as _registry_metric_bucket,
+)
+
 SCALAR_ONLY = "scalar_only"
 FULL_VECTOR = "full_vector"
 
-# Frozen §6 table. Prefixes cover the Study-B cell family (studyB_cell_A/B/C/D)
-# and the corrected-RGCL family without enumerating every draw-seed variant.
-_EXACT_METHOD_BUCKETS: Dict[str, str] = {
-    "uncalibrated": FULL_VECTOR,
-    "base_model": FULL_VECTOR,
-    "temperature_scaling": FULL_VECTOR,
-    "parameterized_temperature_scaling": FULL_VECTOR,
-    "vector_scaling": FULL_VECTOR,
-    "odir_dirichlet": FULL_VECTOR,
-    "native_dac": FULL_VECTOR,
-    "kcal": FULL_VECTOR,
-    "top_label_isotonic": SCALAR_ONLY,
-    "gc_dac": SCALAR_ONLY,
-    "published_rgcl": SCALAR_ONLY,
-    "corrected_rgcl_studyA": SCALAR_ONLY,
-    "trust_score_original_diagnostic": SCALAR_ONLY,
-    "trust_score_original_switch": SCALAR_ONLY,
-    "mahalanobis_confidence": SCALAR_ONLY,
-    "full_vector_geometric_fusion": FULL_VECTOR,
-    "glad_pi": FULL_VECTOR,
-    "glad_pi_zero_geometry": FULL_VECTOR,
-}
-_PREFIX_METHOD_BUCKETS = (
-    ("studyB_cell_", SCALAR_ONLY),
-    ("trust_score", SCALAR_ONLY),
-    ("contrastive_beta_", FULL_VECTOR),
-)
+# The frozen §6 buckets now live in the canonical semantics registry
+# (utils/method_metadata.py) together with each method's output semantics and
+# effective prediction source, so a bucket and its evaluation path can never
+# disagree. This module keeps only the artifact-writer enforcement.
 
 
 def metric_bucket_for_method(method_name: str) -> str:
-    if method_name in _EXACT_METHOD_BUCKETS:
-        return _EXACT_METHOD_BUCKETS[method_name]
-    for prefix, bucket in _PREFIX_METHOD_BUCKETS:
-        if method_name.startswith(prefix):
-            return bucket
-    raise ValueError(
-        f"Method '{method_name}' has no frozen §6 metric-bucket entry -- add it to "
-        "_EXACT_METHOD_BUCKETS or _PREFIX_METHOD_BUCKETS before writing an artifact row "
-        "for it (never infer the bucket after the fact)."
-    )
+    """Frozen §6 metric bucket for a method (delegates to the canonical registry).
+
+    Raises for an unregistered method -- the bucket is never inferred after
+    the fact.
+    """
+    return _registry_metric_bucket(method_name)
 
 
 def config_hash(config: Dict[str, Any]) -> str:

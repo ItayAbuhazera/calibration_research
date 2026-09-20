@@ -1,0 +1,4 @@
+cat: '': No such file or directory
+ bytes=0 secs=.006647417
+/groups/cliron_group/itayab/calibration_research/Research/GeometricFullCalibration/data/cifar-100-python/train bytes=155249918 secs=.364576867
+/groups/cliron_group/itayab/calibration_research/Research/GeometricFullCalibration/data/cifar-100-python/test bytes=31049707 secs=.079230614

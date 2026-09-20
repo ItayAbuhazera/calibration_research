@@ -541,3 +541,117 @@ def test_resolve_device_cuda_unavailable_raises(monkeypatch):
     monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
     with pytest.raises(RuntimeError, match="cuda.*silently fall back to CPU"):
         resolve_device("cuda")
+
+
+# --------------------------------------------------------------------------
+# Regression: stage4 resume with a completed anchored_rankgeom_tail_mixture
+# checkpoint must not need model / model_adapter / train_raw
+# --------------------------------------------------------------------------
+def _write_completed_rankgeom_checkpoint(out_dir, entry_extra):
+    from Experiments.run_unified_benchmark import _save_method_checkpoint
+
+    probs = np.full((6, 3), 1.0 / 3.0)
+    entry = {"method_name": "anchored_rankgeom_tail_mixture", **entry_extra}
+    _save_method_checkpoint(
+        str(out_dir), "anchored_rankgeom_tail_mixture", entry, probs, True,
+        stage_name="stage4_late_outputs",
+    )
+    return probs
+
+
+def test_completed_rankgeom_resume_needs_no_model_or_train_data(tmp_path):
+    from Experiments.run_unified_benchmark import (
+        _is_method_checkpoint_complete,
+        _load_completed_rankgeom_resume_state,
+    )
+
+    expected = _write_completed_rankgeom_checkpoint(tmp_path, {})
+    assert _is_method_checkpoint_complete(str(tmp_path), "anchored_rankgeom_tail_mixture", 6, 3)
+    sel = {"selected_lambda": 0.5, "selected_alpha": 2.0}
+    probs, out_sel = _load_completed_rankgeom_resume_state(str(tmp_path), sel)
+    np.testing.assert_array_equal(np.asarray(probs), expected)
+    assert out_sel == sel
+
+
+def test_completed_rankgeom_resume_recovers_selection_from_entry(tmp_path):
+    from Experiments.run_unified_benchmark import _load_completed_rankgeom_resume_state
+
+    _write_completed_rankgeom_checkpoint(
+        tmp_path, {"selected_lambda": 1.0, "selected_alpha": 4.0}
+    )
+    _, sel = _load_completed_rankgeom_resume_state(str(tmp_path), None)
+    assert sel == {"selected_lambda": 1.0, "selected_alpha": 4.0}
+
+
+def test_completed_rankgeom_resume_never_defaults_selection_to_zero(tmp_path):
+    from Experiments.run_unified_benchmark import _load_completed_rankgeom_resume_state
+
+    _write_completed_rankgeom_checkpoint(tmp_path, {})
+    with pytest.raises(RuntimeError, match="no recoverable selected_lambda/selected_alpha"):
+        _load_completed_rankgeom_resume_state(str(tmp_path), None)
+
+
+def test_main_guards_rankgeom_compute_paths_by_need_rankgeom_method():
+    """Structural guard: everything that needs model/train_raw or the selected
+    lambda/alpha (run_sgc_with_dac_layers on val, test mixture, test NLL) must
+    run only when need_rankgeom_method is true."""
+    import ast
+
+    src = (Path(__file__).resolve().parents[1] / "Experiments" / "run_unified_benchmark.py").read_text()
+    main_fn = next(
+        n for n in ast.parse(src).body if isinstance(n, ast.FunctionDef) and n.name == "main"
+    )
+    parents = {}
+    for node in ast.walk(main_fn):
+        for child in ast.iter_child_nodes(node):
+            parents[child] = node
+
+    def guarded(node):
+        child, cur = node, parents.get(node)
+        while cur is not None:
+            if isinstance(cur, ast.If):
+                test = ast.unparse(cur.test)
+                in_body = any(child is b for b in cur.body)
+                if test == "need_rankgeom_method" and in_body:
+                    return True
+                if test == "not need_rankgeom_method" and not in_body:
+                    return True
+            child, cur = cur, parents.get(cur)
+        return False
+
+    checked = 0
+    for node in ast.walk(main_fn):
+        if (
+            isinstance(node, ast.Call)
+            and ast.unparse(node.func) == "run_sgc_with_dac_layers"
+            and any(k.arg == "test_raw" and ast.unparse(k.value) == "val_raw_aligned" for k in node.keywords)
+        ):
+            checked += 1
+            assert guarded(node), f"unguarded val run_sgc_with_dac_layers at line {node.lineno}"
+        if isinstance(node, ast.Assign) and any(
+            ast.unparse(t) in ("test_nll_at_selected", "anchored_rankgeom_mixture_probs")
+            and isinstance(node.value, (ast.Call,))
+            and "selected_lambda" in ast.unparse(node.value) + ast.unparse(node.value.args if hasattr(node.value, "args") else [])
+            for t in node.targets
+        ):
+            checked += 1
+            assert guarded(node), f"unguarded selected-lambda use at line {node.lineno}"
+    assert checked >= 3
+
+
+def test_runner_mahalanobis_logs_shrinkage_used_not_none_shrinkage():
+    """shrinkage=None (auto Ledoit-Wolf) must not be %-formatted; log shrinkage_used."""
+    src = (Path(__file__).resolve().parents[1] / "Experiments" / "run_unified_benchmark.py").read_text()
+    assert '_mahal_fit_info["shrinkage"]' not in src
+    assert 'shrinkage_used=%.4f' in src
+    params = MahalanobisConfidenceCalibrator().get_params()
+    assert params["shrinkage"] is None
+    rng = np.random.default_rng(0)
+    cal = MahalanobisConfidenceCalibrator()
+    labels = np.arange(60) % 3
+    cal.fit(rng.normal(size=(60, 5)), labels, rng.normal(size=(60, 5)),
+            np.full((60, 3), 1 / 3), labels)
+    info = cal.get_params()
+    assert info["shrinkage"] is None
+    assert isinstance(info["shrinkage_used"], float)
+    "shrinkage_used=%.4f" % info["shrinkage_used"]

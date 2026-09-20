@@ -7,9 +7,11 @@ from different scripts are evaluated with one consistent implementation.
 
 from __future__ import annotations
 
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 import numpy as np
+
+from utils.selective_metrics import selective_metrics
 
 
 def validate_probability_matrix(
@@ -81,26 +83,94 @@ def accuracy(probs: np.ndarray, y_true: np.ndarray) -> float:
     return float(np.mean(preds == y_true))
 
 
-def top_label_ece(probs: np.ndarray, y_true: np.ndarray, num_bins: int = 15) -> float:
-    confidences = np.max(probs, axis=1)
-    predictions = np.argmax(probs, axis=1)
-    correct = (predictions == y_true).astype(np.float64)
+def confidence_ece(
+    confidence: np.ndarray, correct: np.ndarray, num_bins: int = 15
+) -> float:
+    """Equal-width binned calibration error of (confidence, correct).
+
+    The single implementation behind top-label ECE for BOTH buckets: a
+    full-vector method passes (max(probs), argmax(probs)==y); a scalar
+    confidence method passes (calibrated scalar, base_pred==y).
+    """
+    confidence = np.asarray(confidence, dtype=np.float64).reshape(-1)
+    correct = np.asarray(correct, dtype=np.float64).reshape(-1)
+    if confidence.shape != correct.shape:
+        raise ValueError("confidence and correct must align")
+    n = confidence.size
+    if n == 0:
+        return 0.0
     edges = np.linspace(0.0, 1.0, num_bins + 1)
     ece = 0.0
-    n = len(y_true)
     for i in range(num_bins):
         lo, hi = edges[i], edges[i + 1]
         if i == num_bins - 1:
-            in_bin = (confidences >= lo) & (confidences <= hi)
+            in_bin = (confidence >= lo) & (confidence <= hi)
         else:
-            in_bin = (confidences >= lo) & (confidences < hi)
+            in_bin = (confidence >= lo) & (confidence < hi)
         if not np.any(in_bin):
             continue
         prop = np.mean(in_bin)
-        acc_bin = np.mean(correct[in_bin])
-        conf_bin = np.mean(confidences[in_bin])
-        ece += prop * abs(acc_bin - conf_bin)
-    return float(ece if n > 0 else 0.0)
+        ece += prop * abs(float(np.mean(correct[in_bin])) - float(np.mean(confidence[in_bin])))
+    return float(ece)
+
+
+def confidence_adaptive_ece(
+    confidence: np.ndarray, correct: np.ndarray, num_bins: int = 15
+) -> float:
+    """Equal-MASS binned calibration error of (confidence, correct).
+
+    TIE HANDLING. Equal-mass bins cut at fixed rank positions, so when many
+    samples share a confidence value a tied block straddles a bin boundary and
+    the result depends on the arbitrary order of rows within that block. On
+    seed 4 the geometric scalar methods have tie blocks covering 53-66% of the
+    test set, and a naive implementation moved adaptive ECE by up to 0.006
+    across row permutations -- larger than the effects this benchmark is
+    trying to measure.
+
+    We therefore replace each tied block's correctness by the block mean
+    before binning (the same device `utils.selective_metrics` uses for AURC).
+    Every sample in a tied block then contributes the block's average
+    correctness at the block's exact confidence, whichever bin it lands in, so
+    the result is deterministic and invariant to input row order.
+    """
+    confidence = np.asarray(confidence, dtype=np.float64).reshape(-1)
+    correct = np.asarray(correct, dtype=np.float64).reshape(-1)
+    if confidence.shape != correct.shape:
+        raise ValueError("confidence and correct must align")
+    n = confidence.size
+    if n == 0:
+        return 0.0
+    order = np.argsort(confidence, kind="stable")
+    sorted_conf = confidence[order]
+    sorted_correct = correct[order]
+
+    # Tie-average correctness within each block of equal confidence.
+    new_block = np.empty(n, dtype=bool)
+    new_block[0] = True
+    new_block[1:] = sorted_conf[1:] != sorted_conf[:-1]
+    block_id = np.cumsum(new_block) - 1
+    block_mean = np.bincount(block_id, weights=sorted_correct) / np.bincount(block_id)
+    sorted_correct = block_mean[block_id]
+
+    edges = np.linspace(0, n, num_bins + 1, dtype=int)
+    ece = 0.0
+    for i in range(num_bins):
+        start, end = edges[i], edges[i + 1]
+        if end <= start:
+            continue
+        prop = (end - start) / n
+        ece += prop * abs(
+            float(np.mean(sorted_correct[start:end])) - float(np.mean(sorted_conf[start:end]))
+        )
+    return float(ece)
+
+
+def top_label_ece(probs: np.ndarray, y_true: np.ndarray, num_bins: int = 15) -> float:
+    return confidence_ece(
+        np.max(probs, axis=1),
+        (np.argmax(probs, axis=1) == y_true).astype(np.float64),
+        num_bins=num_bins,
+    )
 
 
 def classwise_ece(probs: np.ndarray, y_true: np.ndarray, num_bins: int = 15) -> float:
@@ -127,27 +197,11 @@ def classwise_ece(probs: np.ndarray, y_true: np.ndarray, num_bins: int = 15) -> 
 
 
 def adaptive_ece(probs: np.ndarray, y_true: np.ndarray, num_bins: int = 15) -> float:
-    confidences = np.max(probs, axis=1)
-    predictions = np.argmax(probs, axis=1)
-    correct = (predictions == y_true).astype(np.float64)
-    order = np.argsort(confidences)
-    sorted_conf = confidences[order]
-    sorted_correct = correct[order]
-    n = len(y_true)
-    if n == 0:
-        return 0.0
-    edges = np.linspace(0, n, num_bins + 1, dtype=int)
-    ece = 0.0
-    for i in range(num_bins):
-        start = edges[i]
-        end = edges[i + 1]
-        if end <= start:
-            continue
-        conf_bin = sorted_conf[start:end]
-        corr_bin = sorted_correct[start:end]
-        prop = len(conf_bin) / n
-        ece += prop * abs(float(np.mean(corr_bin)) - float(np.mean(conf_bin)))
-    return float(ece)
+    return confidence_adaptive_ece(
+        np.max(probs, axis=1),
+        (np.argmax(probs, axis=1) == y_true).astype(np.float64),
+        num_bins=num_bins,
+    )
 
 
 def evaluate_all(
@@ -158,14 +212,96 @@ def evaluate_all(
     adaptive_bins: Optional[int] = None,
     eps: float = 1e-12,
     sum_tolerance: float = 1e-6,
-) -> Dict[str, float]:
+    include_selective: bool = True,
+) -> Dict[str, Any]:
+    """Full-vector metric bucket: the NxC matrix IS the scientific object.
+
+    Only for methods whose registry `output_semantics` is "full_vector".
+    Scalar-confidence methods must go through `evaluate_scalar_confidence`,
+    which never reads the surrogate matrix's argmax or max.
+    """
     validate_probability_matrix(probs, y_true, sum_tolerance=sum_tolerance)
     adapt_bins = num_bins if adaptive_bins is None else adaptive_bins
-    return {
+    out: Dict[str, Any] = {
         "accuracy": accuracy(probs, y_true),
         "nll": multiclass_nll(probs, y_true, eps=eps),
         "brier": multiclass_brier_score(probs, y_true),
         "top_label_ece": top_label_ece(probs, y_true, num_bins=num_bins),
         "classwise_ece": classwise_ece(probs, y_true, num_bins=num_bins),
         "adaptive_ece": adaptive_ece(probs, y_true, num_bins=adapt_bins),
+    }
+    if include_selective:
+        out.update(
+            selective_metrics(
+                np.max(probs, axis=1),
+                (np.argmax(probs, axis=1) == y_true).astype(np.float64),
+            )
+        )
+    return out
+
+
+def evaluate_scalar_confidence(
+    confidence: np.ndarray,
+    correct: np.ndarray,
+    *,
+    num_bins: int = 15,
+    adaptive_bins: Optional[int] = None,
+    include_selective: bool = True,
+) -> Dict[str, Any]:
+    """Scalar metric bucket (frozen BENCHMARK_IMPLEMENTATION_PLAN.md §6).
+
+    `confidence` is the method's native calibrated confidence in the EFFECTIVE
+    prediction and `correct` is whether that effective prediction is right.
+    No NxC matrix is consulted, so no reconstruction can redefine either one.
+
+    NLL, multiclass Brier and classwise ECE are a real `None`: the plan
+    forbids fabricating them from a post-hoc reconstruction, and a null in
+    the artifact makes downstream aggregation fail loudly instead of reading
+    a missing key as zero.
+    """
+    confidence = np.asarray(confidence, dtype=np.float64).reshape(-1)
+    correct = np.asarray(correct).reshape(-1).astype(np.float64)
+    if confidence.shape != correct.shape:
+        raise ValueError("confidence and correct must align")
+    if confidence.size == 0:
+        raise ValueError("Empty confidence array")
+    if not np.isfinite(confidence).all():
+        raise ValueError("confidence contains NaN or Inf")
+    if not np.all((correct == 0.0) | (correct == 1.0)):
+        raise ValueError("correct must be boolean/0-1 valued")
+    adapt_bins = num_bins if adaptive_bins is None else adaptive_bins
+    out: Dict[str, Any] = {
+        "accuracy": float(np.mean(correct)),
+        "nll": None,
+        "brier": None,
+        "top_label_ece": confidence_ece(confidence, correct, num_bins=num_bins),
+        "classwise_ece": None,
+        "adaptive_ece": confidence_adaptive_ece(confidence, correct, num_bins=adapt_bins),
+    }
+    if include_selective:
+        out.update(selective_metrics(confidence, correct))
+    return out
+
+
+def scalar_confidence_from_surrogate(
+    surrogate_probs: np.ndarray, base_probs: np.ndarray
+) -> Dict[str, np.ndarray]:
+    """Extract the scalar semantics from a stored surrogate matrix.
+
+    Returns the effective prediction (always the BASE argmax), the calibrated
+    confidence the surrogate assigns to that class, and the surrogate's own
+    argmax for the `surrogate_argmax_change_rate` diagnostic only.
+    """
+    surrogate_probs = np.asarray(surrogate_probs, dtype=np.float64)
+    base_probs = np.asarray(base_probs, dtype=np.float64)
+    if surrogate_probs.shape != base_probs.shape:
+        raise ValueError(
+            f"surrogate {surrogate_probs.shape} and base {base_probs.shape} must match"
+        )
+    base_pred = np.argmax(base_probs, axis=1)
+    rows = np.arange(base_pred.shape[0])
+    return {
+        "effective_pred": base_pred,
+        "confidence": surrogate_probs[rows, base_pred],
+        "surrogate_pred": np.argmax(surrogate_probs, axis=1),
     }

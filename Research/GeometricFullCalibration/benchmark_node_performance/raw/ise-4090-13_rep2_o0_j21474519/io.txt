@@ -1,0 +1,2 @@
+nfs: write: 382 MB/s | read_direct: 344 MB/s
+localtmp: write: 964 MB/s | read_direct: 5.0 GB/s

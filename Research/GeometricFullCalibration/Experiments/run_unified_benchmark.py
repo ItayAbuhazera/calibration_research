@@ -69,7 +69,15 @@ from Experiments.run_rgc_experiments import (
 )
 from utils.calibration_utils import get_all_data_as_numpy, load_cifar_c_loader
 from utils.decision_audit import decision_audit as _decision_audit, make_inner_validation_split
-from utils.method_metadata import structural_axes_for_method
+from utils.method_metadata import (
+    PRED_BASE,
+    SCALAR_CONFIDENCE,
+    SCALAR_ONLY_BUCKET,
+    SEMANTIC_SCHEMA_VERSION,
+    method_semantics,
+    require_method_semantics,
+    structural_axes_for_method,
+)
 from utils.stability_space import StabilitySpace
 from utils.logging_config import get_logger
 from utils.model_utils import (
@@ -78,7 +86,14 @@ from utils.model_utils import (
     get_data_loaders,
     load_trained_model,
 )
-from utils.unified_metrics import evaluate_all, top_label_ece, validate_probability_matrix
+from utils.unified_metrics import (
+    confidence_ece,
+    evaluate_all,
+    evaluate_scalar_confidence,
+    scalar_confidence_from_surrogate,
+    top_label_ece,
+    validate_probability_matrix,
+)
 from utils.utils import discover_model_layers
 
 logger = get_logger(__name__)
@@ -153,8 +168,12 @@ def _apply_disable_all_optional_methods(args: argparse.Namespace) -> None:
         setattr(args, flag_name, False)
 
 
+FITTED_STATE_SUFFIXES = (".pkl", ".pt")
+
+
 def _fitted_state_dir_hash(fitted_state_dir: str | None) -> str | None:
-    """Aggregate content hash of every .pkl file currently in
+    """Aggregate content hash of every fitted-state artifact (FITTED_STATE_SUFFIXES:
+    .pkl calibrators and .pt such as kcal_calibrator.pt) currently in
     fitted_state_dir, sorted by filename -- the "fitted artifact ID/hash"
     item 3 of the corruption-cell protocol requires every evaluation
     artifact to record. Two runs pointing at the same fitted_state_dir with
@@ -164,12 +183,35 @@ def _fitted_state_dir_hash(fitted_state_dir: str | None) -> str | None:
         return None
     h = hashlib.sha256()
     for name in sorted(os.listdir(fitted_state_dir)):
-        if not name.endswith(".pkl"):
+        if not name.endswith(FITTED_STATE_SUFFIXES):
             continue
         h.update(name.encode("utf-8"))
         with open(os.path.join(fitted_state_dir, name), "rb") as f:
             h.update(f.read())
     return h.hexdigest()
+
+
+def _git_provenance(repo_dir: str) -> Dict[str, Any]:
+    """HEAD commit plus dirty-tree information. When tracked files differ from
+    HEAD, git_diff_hash is the sha256 of `git diff HEAD` (tracked files only,
+    so untracked benchmark artifacts never affect it) under repo_dir only;
+    None when clean."""
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=repo_dir, stderr=subprocess.DEVNULL
+        ).decode().strip()
+        diff = subprocess.check_output(
+            ["git", "diff", "HEAD", "--binary", "--no-ext-diff", "--", "."],
+            cwd=repo_dir, stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        return {"git_commit": None, "git_dirty": None, "git_diff_hash": None}
+    dirty = len(diff) > 0
+    return {
+        "git_commit": commit,
+        "git_dirty": dirty,
+        "git_diff_hash": hashlib.sha256(diff).hexdigest() if dirty else None,
+    }
 
 
 def _write_fit_once_provenance(args: argparse.Namespace) -> None:
@@ -185,13 +227,6 @@ def _write_fit_once_provenance(args: argparse.Namespace) -> None:
     raise rather than fit fresh when state is missing, exactly what every
     method's evaluation in this run is guaranteed to have used).
     """
-    try:
-        git_commit = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], cwd=PROJECT_ROOT
-        ).decode().strip()
-    except Exception:
-        git_commit = None
-
     resolved_config = {
         "dataset": args.dataset, "model": args.model, "method": args.method,
         "seed": args.seed, "num_layers": args.num_layers,
@@ -202,7 +237,7 @@ def _write_fit_once_provenance(args: argparse.Namespace) -> None:
     ).hexdigest()
 
     provenance = {
-        "git_commit": git_commit,
+        **_git_provenance(PROJECT_ROOT),
         "config_hash": config_hash,
         "resolved_config": resolved_config,
         "fitted_state_dir": args.fitted_state_dir,
@@ -517,36 +552,163 @@ def _make_method_entry(
     base_probs_for_anchor_bins: np.ndarray | None = None,
     base_probs: np.ndarray | None = None,
 ) -> Dict[str, Any]:
-    metrics = evaluate_all(probs, y_test)
+    # The canonical registry — not the call site — decides how this method is
+    # evaluated. `can_change_argmax` is still passed so a drifting call site
+    # fails loudly here instead of silently overriding the registry.
+    semantics = require_method_semantics(method_name)
+    if bool(can_change_argmax) != bool(semantics["can_change_argmax"]):
+        raise ValueError(
+            f"{method_name}: call site passed can_change_argmax="
+            f"{bool(can_change_argmax)} but the canonical registry "
+            f"(utils/method_metadata.py) says {bool(semantics['can_change_argmax'])}. "
+            "Fix the call site or the registry -- these must never disagree."
+        )
+    # Two INDEPENDENT dispatches, exactly as the frozen §6 table defines them:
+    #   metric_bucket              -> WHICH metrics may be emitted
+    #                                 (scalar_only forbids NLL/Brier/classwise)
+    #   effective_prediction_source -> WHOSE prediction and confidence are scored
+    # Trust Score switch is the case that forces them apart: it is scalar_only
+    # ("+ argmax-change metrics for switch") yet its own switched decision is
+    # the scientific object, so it is scored on its own argmax.
+    is_scalar_bucket = semantics["metric_bucket"] == SCALAR_ONLY_BUCKET
+    uses_base_prediction = semantics["effective_prediction_source"] == PRED_BASE
+    is_scalar = semantics["output_semantics"] == SCALAR_CONFIDENCE
+
     entry: Dict[str, Any] = {
         "method_name": method_name,
         "method_family": method_family,
-        "can_change_argmax": can_change_argmax,
+        "can_change_argmax": bool(semantics["can_change_argmax"]),
         "tuning_procedure": tuning_procedure,
         "tuning_split": tuning_split,
         "tuning_objective": tuning_objective,
-        "metrics": metrics,
+        "semantic_schema_version": SEMANTIC_SCHEMA_VERSION,
+        "output_semantics": semantics["output_semantics"],
+        "effective_prediction_source": semantics["effective_prediction_source"],
+        "metric_bucket": semantics["metric_bucket"],
     }
-    # Structural axes from registry — None for unregistered methods.
-    axes = structural_axes_for_method(method_name)
-    if axes is not None:
-        entry["structural_axes"] = axes
-    # Unified decision audit when base probabilities are available.
+
+    # ---- 1. effective prediction + confidence (never the surrogate's argmax
+    #         for a base-prediction method) ---------------------------------
+    if uses_base_prediction:
+        if base_probs is None:
+            raise ValueError(
+                f"{method_name} is a scalar-confidence method whose effective "
+                "prediction is the base prediction, so base_probs is required to "
+                "recover its confidence. Pass base_probs at the call site."
+            )
+        scalar = scalar_confidence_from_surrogate(probs, base_probs)
+        effective_pred = scalar["effective_pred"]
+        effective_confidence = scalar["confidence"]
+        entry["surrogate_only"] = True
+        entry["surrogate_reconstruction"] = semantics["surrogate_reconstruction"]
+        entry["surrogate_argmax_change_rate"] = float(
+            np.mean(scalar["surrogate_pred"] != effective_pred)
+        )
+        # Cannot move, by construction; recorded so the claim is visible in the
+        # artifact rather than merely implied.
+        entry["effective_argmax_change_rate"] = 0.0
+    else:
+        effective_pred = np.argmax(probs, axis=1)
+        effective_confidence = np.max(probs, axis=1)
+        entry["surrogate_only"] = False
+        entry["surrogate_argmax_change_rate"] = None
+        if base_probs is not None:
+            entry["effective_argmax_change_rate"] = float(
+                np.mean(effective_pred != np.argmax(base_probs, axis=1))
+            )
+    effective_correct = (effective_pred == y_test).astype(np.float64)
+
+    # ---- 2. metric bucket -------------------------------------------------
+    if is_scalar_bucket:
+        entry["metrics"] = evaluate_scalar_confidence(
+            effective_confidence, effective_correct
+        )
+    else:
+        entry["metrics"] = evaluate_all(probs, y_test)
+
+    # Structural axes from the same registry entry.
+    entry["structural_axes"] = structural_axes_for_method(method_name)
+    # Unified decision audit when base probabilities are available. For a
+    # scalar method this describes the SURROGATE matrix only and is kept for
+    # backward compatibility / diagnostics; `effective_argmax_change_rate`
+    # above is the scientific quantity.
     if base_probs is not None:
         entry["decision_audit"] = _decision_audit(base_probs, probs, y_test)
-        entry["nll_subsets"] = _nll_by_base_prediction_subset(base_probs, probs, y_test)
+        if uses_base_prediction:
+            entry["decision_audit"]["describes"] = "surrogate_matrix_only"
+        elif not is_scalar_bucket:
+            entry["nll_subsets"] = _nll_by_base_prediction_subset(base_probs, probs, y_test)
     if anchor_ct_for_stratification is not None and base_probs_for_anchor_bins is not None:
-        entry["metrics_by_gc_dac_anchor_ct_bin"] = _metrics_by_anchor_ct_bin(
-            probs=probs,
-            labels=y_test,
-            anchor_ct=anchor_ct_for_stratification,
-            base_probs=base_probs_for_anchor_bins,
-        )
+        if is_scalar_bucket:
+            entry["metrics_by_gc_dac_anchor_ct_bin"] = _scalar_metrics_by_anchor_ct_bin(
+                confidence=effective_confidence,
+                correct=effective_correct,
+                anchor_ct=anchor_ct_for_stratification,
+                argmax_change_rate=entry.get("effective_argmax_change_rate"),
+            )
+        else:
+            entry["metrics_by_gc_dac_anchor_ct_bin"] = _metrics_by_anchor_ct_bin(
+                probs=probs,
+                labels=y_test,
+                anchor_ct=anchor_ct_for_stratification,
+                base_probs=base_probs_for_anchor_bins,
+            )
         entry["gc_dac_anchor_ct_bin_edges"] = list(BIN_EDGES)
         entry["gc_dac_anchor_ct_bin_labels"] = list(BIN_LABELS)
     if extra:
         entry.update(extra)
     return entry
+
+
+def _scalar_metrics_by_anchor_ct_bin(
+    confidence: np.ndarray,
+    correct: np.ndarray,
+    anchor_ct: np.ndarray,
+    argmax_change_rate: float | None = None,
+) -> Dict[str, Dict[str, Any]]:
+    """Anchor-c_t stratification for a scalar-confidence method.
+
+    Mirrors `_metrics_by_anchor_ct_bin` but is computed from the scalar
+    semantics, so it never fabricates an NLL from a surrogate matrix (those
+    fields are a real None, per the frozen §6 rule).
+    """
+    confidence = np.asarray(confidence, dtype=np.float64).reshape(-1)
+    correct = np.asarray(correct, dtype=np.float64).reshape(-1)
+    anchor_ct = np.asarray(anchor_ct, dtype=np.float64).reshape(-1)
+    if not (confidence.shape == correct.shape == anchor_ct.shape):
+        raise ValueError("confidence, correct and anchor_ct must align")
+
+    bin_idx = np.digitize(anchor_ct, BIN_EDGES, right=False) - 1
+    out: Dict[str, Dict[str, Any]] = {}
+    for b, label in enumerate(BIN_LABELS):
+        mask = bin_idx == b
+        count = int(np.sum(mask))
+        if count == 0:
+            out[label] = {
+                "count": 0,
+                "mean_anchor_ct": None,
+                "accuracy": None,
+                "nll": None,
+                "brier_top_label": None,
+                "delta_nll_vs_base": None,
+                "argmax_change_rate_vs_base": None,
+                "mean_confidence": None,
+                "top_label_ece": None,
+            }
+            continue
+        out[label] = {
+            "count": count,
+            "mean_anchor_ct": float(np.mean(anchor_ct[mask])),
+            "accuracy": float(np.mean(correct[mask])),
+            # Forbidden for a scalar method (§6): never reconstructed.
+            "nll": None,
+            "brier_top_label": float(np.mean((confidence[mask] - correct[mask]) ** 2)),
+            "delta_nll_vs_base": None,
+            "argmax_change_rate_vs_base": argmax_change_rate,
+            "mean_confidence": float(np.mean(confidence[mask])),
+            "top_label_ece": confidence_ece(confidence[mask], correct[mask]),
+        }
+    return out
 
 
 def _metrics_by_anchor_ct_bin(
@@ -1853,6 +2015,40 @@ def _write_csv_atomic(path: str, rows: List[Dict[str, Any]]) -> None:
     os.replace(tmp, path)
 
 
+def _assert_argmax_map_matches_registry(
+    method_can_change_argmax: Dict[str, bool]
+) -> None:
+    """Fail loudly if any method's runtime flag contradicts the canonical registry.
+
+    `method_can_change_argmax_map` is written at many call sites; this is the
+    single gate that stops those writes drifting away from
+    utils/method_metadata.py. Methods absent from the registry (externally
+    imported probability sets) are reported but not fatal -- they carry their
+    own provenance.
+    """
+    mismatches = []
+    unregistered = []
+    for name, flag in sorted(method_can_change_argmax.items()):
+        sem = method_semantics(name)
+        if sem is None:
+            unregistered.append(name)
+            continue
+        if bool(flag) != bool(sem["can_change_argmax"]):
+            mismatches.append(
+                f"{name}: runtime={bool(flag)} registry={bool(sem['can_change_argmax'])}"
+            )
+    if unregistered:
+        logger.warning(
+            "Methods with no canonical semantics registry entry (external imports?): %s",
+            ", ".join(unregistered),
+        )
+    if mismatches:
+        raise RuntimeError(
+            "can_change_argmax disagrees with utils/method_metadata.py for: "
+            + "; ".join(mismatches)
+        )
+
+
 def _write_per_sample_npz(
     run_dir: str,
     labels_test: np.ndarray,
@@ -1882,6 +2078,7 @@ def _write_per_sample_npz(
     missing_fields: List[Dict[str, str]] = list(artifact_ctx.get("missing_fields", []))
     run_meta: Dict[str, Any] = artifact_ctx.get("run_meta", {})
 
+    _assert_argmax_map_matches_registry(method_can_change_argmax)
     method_index = sorted(method_probs_by_name.keys())
     n_samples = int(labels_test.shape[0])
     base_pred = np.argmax(base_probs_test, axis=1).astype(np.int64)
@@ -2377,9 +2574,73 @@ def _load_method_probs(
     return np.load(_method_checkpoint_paths(output_dir, method_name)["probs"], mmap_mode=mmap_mode)
 
 
+def _load_completed_rankgeom_resume_state(
+    output_dir: str, rankgeom_selection: Dict[str, Any] | None
+) -> tuple[np.ndarray, Dict[str, Any]]:
+    """Resume path for a completed anchored_rankgeom_tail_mixture checkpoint.
+
+    Needs only on-disk artifacts (no model, adapter or train_raw). The selected
+    lambda/alpha come from rankgeom_selection.json when present, else from the
+    method checkpoint entry; if neither has them this raises rather than
+    silently substituting (0, 0).
+    """
+    method = "anchored_rankgeom_tail_mixture"
+    probs = _load_method_probs(output_dir, method, mmap_mode="r")
+    if rankgeom_selection is not None and {
+        "selected_lambda",
+        "selected_alpha",
+    } <= set(rankgeom_selection):
+        return probs, rankgeom_selection
+    entry = _load_method_entry(output_dir, method)
+    if "selected_lambda" not in entry or "selected_alpha" not in entry:
+        raise RuntimeError(
+            f"Completed {method} checkpoint in {output_dir} has no recoverable "
+            "selected_lambda/selected_alpha (rankgeom_selection.json missing and "
+            "not present in the method entry); refusing to guess."
+        )
+    return probs, {
+        "selected_lambda": float(entry["selected_lambda"]),
+        "selected_alpha": float(entry["selected_alpha"]),
+    }
+
+
 def _load_all_method_entries_in_order(output_dir: str) -> List[Dict[str, Any]]:
     registry = _load_method_registry(output_dir)
-    return [_load_method_entry(output_dir, m) for m in registry.get("ordered_methods", [])]
+    entries = [_load_method_entry(output_dir, m) for m in registry.get("ordered_methods", [])]
+    _assert_uniform_semantic_schema(entries, output_dir)
+    return entries
+
+
+def _assert_uniform_semantic_schema(
+    entries: List[Dict[str, Any]], output_dir: str
+) -> None:
+    """Refuse to assemble a summary that mixes metric semantics.
+
+    A method checkpoint written before SEMANTIC_SCHEMA_VERSION carries
+    surrogate-derived scalar metrics (and a fabricated NLL/Brier for
+    scalar-only methods). Resuming such a run would silently combine those
+    rows with correctly-scored new rows in one summary. Rather than guess, we
+    stop and point at the two ways forward: re-score the stale run with
+    Experiments/rescore_scalar_semantics.py, or start a fresh output_dir.
+    """
+    stale = sorted(
+        str(e.get("method_name"))
+        for e in entries
+        if e.get("semantic_schema_version") != SEMANTIC_SCHEMA_VERSION
+    )
+    if not stale:
+        return
+    raise RuntimeError(
+        f"{output_dir}: {len(stale)} method checkpoint(s) were written under an "
+        f"older metric semantics than {SEMANTIC_SCHEMA_VERSION!r} and cannot be "
+        f"mixed into one summary: {', '.join(stale[:12])}"
+        + (" ..." if len(stale) > 12 else "")
+        + ". Either re-score the existing run in place with "
+        "`python -m Experiments.rescore_scalar_semantics --run_dir <dir>` (no "
+        "refitting needed; it writes a new derived/ artifact and leaves the run "
+        "untouched), or re-run into a fresh --output_dir. Existing results are "
+        "never rewritten automatically."
+    )
 
 
 def _load_method_can_change_argmax_map(output_dir: str) -> Dict[str, bool]:
@@ -3874,7 +4135,7 @@ def main() -> None:
                 native_dac_probs_test,
                 test_labels,
                 "full_vector_density_calibration",
-                True,
+                False,
                 "dac_squared_error_weight_fit",
                 "validation",
                 "dac_paper_objective",
@@ -3890,7 +4151,7 @@ def main() -> None:
                 "native_dac",
                 native_dac_entry,
                 native_dac_probs_test,
-                True,
+                False,
                 stage_name="stage2_early",
             )
             del (
@@ -5004,7 +5265,11 @@ def main() -> None:
         val_nll_at_selected_crossfit_anchor = float(nll_by_lambda_alpha[selected_key])
 
     val_nll_at_selected_full_anchor: float | None = None
-    if args.reuse_non_metric_from:
+    if not need_rankgeom_method:
+        # Completed-method resume: diagnostics were already saved with the
+        # checkpoint; model/train_raw are intentionally not loaded.
+        pass
+    elif args.reuse_non_metric_from:
         logger.info(
             "Skipping full-fit L2 anchor diagnostic in focused %s run",
             args.stab_metric,
@@ -5050,14 +5315,15 @@ def main() -> None:
 
     test_anchor_top_idx = np.argmax(test_base_probs, axis=1)
     test_anchor_c_t = gc_dac_probs[np.arange(len(test_anchor_top_idx)), test_anchor_top_idx]
-    anchored_rankgeom_mixture_probs = _anchored_rankgeom_tail_mixture_probs(
-        model_probs=test_base_probs,
-        anchor_top_conf=test_anchor_c_t,
-        distance_matrix=test_distance_matrix,
-        mix_lambda=selected_lambda,
-        alpha=selected_alpha,
-    )
-    test_nll_at_selected = _multiclass_nll(anchored_rankgeom_mixture_probs, test_y)
+    if need_rankgeom_method:
+        anchored_rankgeom_mixture_probs = _anchored_rankgeom_tail_mixture_probs(
+            model_probs=test_base_probs,
+            anchor_top_conf=test_anchor_c_t,
+            distance_matrix=test_distance_matrix,
+            mix_lambda=selected_lambda,
+            alpha=selected_alpha,
+        )
+        test_nll_at_selected = _multiclass_nll(anchored_rankgeom_mixture_probs, test_y)
     if os.environ.get("DEBUG_ANCHOR_PROBS_DIFF", "0") == "1":
         n_samples = len(base_top_idx)
         if n_samples == 0:
@@ -5358,11 +5624,9 @@ def main() -> None:
         _atomic_write_json(late_anchor_paths["rankgeom_selection"], rankgeom_selection)
     else:
         logger.info("Skipping completed method %s", "anchored_rankgeom_tail_mixture")
-        anchored_rankgeom_mixture_probs = _load_method_probs(
-            args.output_dir, "anchored_rankgeom_tail_mixture", mmap_mode="r"
+        anchored_rankgeom_mixture_probs, rankgeom_selection = (
+            _load_completed_rankgeom_resume_state(args.output_dir, rankgeom_selection)
         )
-        if rankgeom_selection is None:
-            rankgeom_selection = {"selected_lambda": 0.0, "selected_alpha": 0.0}
     method_can_change_argmax_map["anchored_rankgeom_tail_mixture"] = True
     del anchored_rankgeom_mixture_probs
     if need_rankgeom_method and model is not None and model_adapter is not None and train_raw is not None:
@@ -7717,8 +7981,8 @@ def main() -> None:
             method_probs_by_name[_mahal_name] = _mahal_probs_test
             method_can_change_argmax_map[_mahal_name] = False
             logger.info(
-                "mahalanobis_confidence: shrinkage=%.4f feature_dim=%d",
-                _mahal_fit_info["shrinkage"],
+                "mahalanobis_confidence: shrinkage_used=%.4f feature_dim=%d",
+                _mahal_fit_info["shrinkage_used"],
                 _mahal_fit_info["feature_dim"],
             )
             del (

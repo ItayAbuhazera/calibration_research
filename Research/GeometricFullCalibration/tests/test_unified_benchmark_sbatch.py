@@ -4,6 +4,8 @@ from types import SimpleNamespace
 
 import numpy as np
 
+from utils.method_metadata import SEMANTIC_SCHEMA_VERSION
+
 from Experiments.run_unified_benchmark import _args_fingerprint
 from Experiments.run_unified_benchmark import (
     _is_method_checkpoint_complete,
@@ -129,7 +131,7 @@ def test_reuse_imports_invariant_checkpoints_but_not_metric_dependent_ones(tmp_p
     _save_method_checkpoint(
         str(source),
         "gc_dac",
-        {"method_name": "gc_dac", "metrics": {}},
+        {"method_name": "gc_dac", "metrics": {}, "semantic_schema_version": SEMANTIC_SCHEMA_VERSION},
         arrays["gc_dac_probs"],
         False,
         "stage2_early",
@@ -137,7 +139,8 @@ def test_reuse_imports_invariant_checkpoints_but_not_metric_dependent_ones(tmp_p
     _save_method_checkpoint(
         str(source),
         "full_vector_distance_fusion",
-        {"method_name": "full_vector_distance_fusion", "metrics": {}},
+        {"method_name": "full_vector_distance_fusion", "metrics": {},
+         "semantic_schema_version": SEMANTIC_SCHEMA_VERSION},
         arrays["base_probs_test"],
         True,
         "stage4_late_outputs",

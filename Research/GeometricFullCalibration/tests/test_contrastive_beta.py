@@ -301,7 +301,9 @@ def test_contrastive_checkpoint_gate_signature_is_required_and_matched(tmp_path)
         str(tmp_path), method_name, 2, 2, expected_gate_signature=signature
     )
 
-    noncontrast_name = "unrelated_method"
+    # Any registered non-contrastive method; _make_method_entry now requires a
+    # canonical semantics registry entry, so a made-up name is rejected.
+    noncontrast_name = "temperature_scaling"
     noncontrast_entry = _make_method_entry(
         noncontrast_name,
         probs,

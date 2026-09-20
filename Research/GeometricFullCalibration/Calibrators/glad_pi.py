@@ -20,7 +20,8 @@ Loss (asymmetric — margin term applied only to base-wrong samples):
   The asymmetric design avoids sharpening correct predictions (which would hurt ECE).
 
 Beta grid selection:
-  Train one model per beta on the fit split.
+  Train one model per beta on the fit split (with init_seed set, from a
+  seeded initialization so a geometry/zero-geometry pair is exactly matched).
   Evaluate net_flips on the select split.
   Select the beta that maximises net_flips subject to NLL tolerance:
     selected_nll <= (1 + nll_tolerance) * reference_nll (from beta=0)
@@ -235,6 +236,7 @@ class GLADPICalibrator:
         margin: float = 0.5,
         device: Optional[str] = None,
         zero_geometry: bool = False,
+        init_seed: Optional[int] = None,
     ) -> None:
         self.hidden_dim = hidden_dim
         self.lr = lr
@@ -249,6 +251,15 @@ class GLADPICalibrator:
         # masks distance_k to 0 before the MLP so architecture/parameter count
         # stay identical to the geometry-aware model by construction.
         self.zero_geometry = zero_geometry
+        # Matched-ablation determinism. With init_seed set, every beta's network
+        # is constructed immediately after torch.manual_seed(init_seed + beta
+        # index), so the geometry arm and the zero-geometry arm start from
+        # BIT-IDENTICAL parameters and the only difference between them is the
+        # geometry input. With init_seed=None (the default) initialization comes
+        # from the ambient RNG, which is what every already-fitted state in
+        # results/studyAB was produced with -- leaving the default unchanged
+        # keeps those artifacts reproducible.
+        self.init_seed = init_seed
         self._device = torch.device(
             device if device is not None else ("cuda" if torch.cuda.is_available() else "cpu")
         )
@@ -344,7 +355,9 @@ class GLADPICalibrator:
         results: List[Dict[str, Any]] = []
         reference_nll: Optional[float] = None
 
-        for beta in self.beta_grid:
+        for beta_index, beta in enumerate(self.beta_grid):
+            if self.init_seed is not None:
+                torch.manual_seed(int(self.init_seed) + beta_index)
             net = _CorrectionNet(hidden_dim=self.hidden_dim, use_temperature=self.use_temperature)
             net = _train_one_beta(
                 net,
@@ -469,6 +482,7 @@ class GLADPICalibrator:
             "hidden_dim": self.hidden_dim,
             "use_temperature": self.use_temperature,
             "zero_geometry": self.zero_geometry,
+            "init_seed": self.init_seed,
             "nll_tolerance": self.nll_tolerance,
             "beta_grid": self.beta_grid,
             "selection_results": self._selection_results,

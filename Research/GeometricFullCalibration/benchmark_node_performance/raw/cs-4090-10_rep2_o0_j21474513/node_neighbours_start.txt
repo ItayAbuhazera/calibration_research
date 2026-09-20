@@ -1,0 +1,3 @@
+21473630_0 hadarzil 8 gres/gpu:rtx_4090:1
+21474513 itayab 8 gres/gpu:rtx_4090:1
+21312661 shhara 6 N/A
