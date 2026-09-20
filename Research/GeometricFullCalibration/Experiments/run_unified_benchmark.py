@@ -2108,6 +2108,20 @@ def _mark_stage_complete(
     _write_progress(output_dir, progress)
 
 
+def resolve_device(requested: str) -> torch.device:
+    """Resolve the requested device without ever silently downgrading CUDA to CPU."""
+    device = torch.device(requested)
+    if device.type == "cpu":
+        return device
+    if device.type == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError(
+            f"--device {requested!r} was requested but torch.cuda.is_available() "
+            "is False. Refusing to silently fall back to CPU; fix the CUDA "
+            "environment/allocation or pass --device cpu explicitly."
+        )
+    return device
+
+
 def _cleanup_memory() -> None:
     gc.collect()
     if torch.cuda.is_available():
@@ -3499,9 +3513,7 @@ def main() -> None:
             "--enable_kcal_lite_baseline, or --enable_kcal_factorial; ignoring."
         )
 
-    device = torch.device(
-        args.device if args.device == "cpu" or torch.cuda.is_available() else "cpu"
-    )
+    device = resolve_device(args.device)
     os.makedirs(args.output_dir, exist_ok=True)
     os.makedirs(_intermediates_dir(args.output_dir), exist_ok=True)
     fp = _args_fingerprint(args)
@@ -7645,10 +7657,23 @@ def main() -> None:
         else:
             from Calibrators.mahalanobis_confidence import MahalanobisConfidenceCalibrator
 
-            _mahal_train_features = np.load(stage3_files["train_features"])
+            # All three splits must come from the same (classifier-input
+            # penultimate) representation; the research-selected train layer is
+            # a different space with a different dimension.
+            _mahal_train_features = np.load(stage3_files["kcal_train_penultimate"])
             _mahal_train_labels = np.load(stage3_files["train_y"])
             _mahal_val_penultimate = np.load(stage3_files["kcal_val_penultimate"])
             _mahal_test_penultimate = np.load(stage3_files["kcal_test_penultimate"])
+            assert (
+                _mahal_train_features.shape[1]
+                == _mahal_val_penultimate.shape[1]
+                == _mahal_test_penultimate.shape[1]
+            ), (
+                "Mahalanobis feature dimension mismatch: "
+                f"train={_mahal_train_features.shape[1]}, "
+                f"val={_mahal_val_penultimate.shape[1]}, "
+                f"test={_mahal_test_penultimate.shape[1]}"
+            )
 
             _mahal = MahalanobisConfidenceCalibrator()
             _fit_or_load_state(

@@ -88,7 +88,28 @@ class MahalanobisConfidenceCalibrator:
         (per plan §7, reused verbatim) used to fit the isotonic mapping from
         Mahalanobis score to correctness.
         """
+        train_features = np.asarray(train_features)
+        fit_features = np.asarray(fit_features)
+        if train_features.ndim != 2 or fit_features.ndim != 2:
+            raise ValueError(
+                "Mahalanobis features must be 2-D; got "
+                f"train_features.shape={train_features.shape}, "
+                f"fit_features.shape={fit_features.shape}"
+            )
+        if train_features.shape[1] != fit_features.shape[1]:
+            raise ValueError(
+                "Mahalanobis feature dimension mismatch: train_features has "
+                f"dim {train_features.shape[1]} but fit_features has dim "
+                f"{fit_features.shape[1]}. Train and fit features must come "
+                "from the same representation (e.g. both penultimate "
+                "classifier-input features)."
+            )
         train_labels = np.asarray(train_labels)
+        if len(train_labels) != train_features.shape[0]:
+            raise ValueError(
+                f"train_labels length {len(train_labels)} != train_features rows "
+                f"{train_features.shape[0]}"
+            )
         self._num_classes = int(np.max(train_labels)) + 1
         d = train_features.shape[1]
         self._feature_dim = int(d)

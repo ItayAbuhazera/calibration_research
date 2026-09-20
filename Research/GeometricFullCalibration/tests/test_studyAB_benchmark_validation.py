@@ -489,3 +489,55 @@ def test_corrected_filter_is_additive_not_a_mutation(device, checkpoints):
     assert "fc" in original_names
     assert "fc" not in corrected_names
     assert corrected_names == original_names - {"fc"}
+
+
+# --------------------------------------------------------------------------
+# Regression: seed-4 Mahalanobis matmul 1024 vs 2048 (mixed representations)
+# --------------------------------------------------------------------------
+def test_runner_mahalanobis_uses_penultimate_train_features():
+    src = (Path(__file__).resolve().parents[1] / "Experiments" / "run_unified_benchmark.py").read_text()
+    start = src.index("if args.enable_mahalanobis_confidence:\n        _mahal_name")
+    block = src[start : src.index("Contrastive-beta sweep", start)]
+    assert '_mahal_train_features = np.load(stage3_files["kcal_train_penultimate"])' in block
+    assert 'stage3_files["train_features"]' not in block
+    assert "Mahalanobis feature dimension mismatch" in block
+
+
+def test_mahalanobis_fit_rejects_mismatched_feature_dims():
+    rng = np.random.default_rng(0)
+    n, c = 40, 3
+    labels = np.arange(n) % c
+    probs = np.full((n, c), 1.0 / c)
+    with pytest.raises(ValueError, match="feature dimension mismatch.*1024.*2048|dim 8.*dim 12"):
+        MahalanobisConfidenceCalibrator().fit(
+            train_features=rng.normal(size=(n, 8)),
+            train_labels=labels,
+            fit_features=rng.normal(size=(n, 12)),
+            fit_base_probs=probs,
+            fit_labels=labels,
+        )
+
+
+# --------------------------------------------------------------------------
+# Regression: no silent CUDA -> CPU fallback in the unified benchmark runner
+# --------------------------------------------------------------------------
+def test_resolve_device_explicit_cpu_without_cuda(monkeypatch):
+    from Experiments.run_unified_benchmark import resolve_device
+
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    assert resolve_device("cpu") == torch.device("cpu")
+
+
+def test_resolve_device_cuda_available(monkeypatch):
+    from Experiments.run_unified_benchmark import resolve_device
+
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    assert resolve_device("cuda") == torch.device("cuda")
+
+
+def test_resolve_device_cuda_unavailable_raises(monkeypatch):
+    from Experiments.run_unified_benchmark import resolve_device
+
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    with pytest.raises(RuntimeError, match="cuda.*silently fall back to CPU"):
+        resolve_device("cuda")
