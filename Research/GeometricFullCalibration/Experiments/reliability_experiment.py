@@ -135,8 +135,11 @@ def regular_features(logits: np.ndarray) -> Tuple[np.ndarray, List[str]]:
     cols: List[np.ndarray] = []
     names: List[str] = []
 
-    cols.append(z_sorted[:, :TOP_K]); names += [f"logit_sorted_{i}" for i in range(TOP_K)]
-    cols.append(p_sorted[:, :TOP_K]); names += [f"prob_sorted_{i}" for i in range(TOP_K)]
+    # Clamp to the class count: a problem with fewer classes than TOP_K must
+    # not produce more feature NAMES than feature COLUMNS.
+    k = min(TOP_K, z.shape[1])
+    cols.append(z_sorted[:, :k]); names += [f"logit_sorted_{i}" for i in range(k)]
+    cols.append(p_sorted[:, :k]); names += [f"prob_sorted_{i}" for i in range(k)]
 
     msp = p_sorted[:, 0]
     entropy = -(p * np.log(np.clip(p, 1e-12, None))).sum(axis=1)
@@ -178,8 +181,9 @@ def geometry_features(
     order = np.argsort(d, axis=1)
     pred_rank = np.argmax(order == base_pred[:, None], axis=1).astype(np.float64)
 
-    cols = [d_sorted[:, :TOP_K]]
-    names = [f"{prefix}_dist_sorted_{i}" for i in range(TOP_K)]
+    k = min(TOP_K, d.shape[1])
+    cols = [d_sorted[:, :k]]
+    names = [f"{prefix}_dist_sorted_{i}" for i in range(k)]
     extras = [
         (d_pred, "dist_to_pred"),
         (d_sorted[:, 0], "dist_min"),
