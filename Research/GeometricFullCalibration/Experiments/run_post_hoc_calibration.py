@@ -1225,9 +1225,16 @@ def get_data_loaders(
     corruption_type: str = None,
     corruption_severity: int = None,
     image_size: int = None,
+    preprocessing_protocol: str = None,
 ):
     """
     Get data loaders with same split as Phase 1.
+
+    preprocessing_protocol: None keeps this LEGACY paper-reproduction path
+    bit-for-bit (CIFAR-100 clean test uses ImageNet statistics although the
+    checkpoints were trained with CIFAR statistics -- see
+    utils/preprocessing_protocol.py, docs/normalization_audit.md). Opt in to
+    the corrected behaviour with --preprocessing_protocol corrected_v2_train_norm.
 
     For corruption experiments:
     - Train/Val loaders remain CLEAN (for calibration fitting)
@@ -1362,7 +1369,11 @@ def get_data_loaders(
                     test_loader.dataset.transform or transforms.ToTensor(), image_size
                 )
         else:
-            test_loader = cifar100_test(batch_size=batch_size, shuffle=False)
+            test_loader = cifar100_test(
+                batch_size=batch_size,
+                shuffle=False,
+                preprocessing_protocol=preprocessing_protocol,
+            )
             # Apply resize to test dataset if needed
             if (
                 image_size is not None
@@ -3023,6 +3034,17 @@ def main():
         help="Model architecture",
     )
     parser.add_argument(
+        "--preprocessing_protocol",
+        choices=["legacy_v1_mixed_norm", "corrected_v2_train_norm"],
+        default="legacy_v1_mixed_norm",
+        help=(
+            "Legacy paper-reproduction path: default keeps the historical CIFAR-100 "
+            "clean-test normalization (ImageNet statistics; a verified train/test "
+            "mismatch). Opt in to corrected_v2_train_norm for corrected runs; output "
+            "files are NOT versioned by this script, so use a fresh --output_dir."
+        ),
+    )
+    parser.add_argument(
         "--seed", type=int, required=True, help="Random seed used in training"
     )
 
@@ -3110,7 +3132,10 @@ def main():
 
     # Get data loaders
     train_loader, val_loader, test_loader, num_classes = get_data_loaders(
-        args.dataset, args.batch_size, args.seed
+        args.dataset, args.batch_size, args.seed,
+        preprocessing_protocol=(
+            None if args.preprocessing_protocol == "legacy_v1_mixed_norm" else args.preprocessing_protocol
+        ),
     )
 
     # Load trained model

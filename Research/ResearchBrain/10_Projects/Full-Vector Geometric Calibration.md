@@ -83,6 +83,17 @@ score modes); a softmax–kNN blend; KCal-lite and full KCal (learned projection
   [[H-RGC-02 Richer representation features predict geometric reliability]].
 - Candidate (not yet a project): [[Predicting geometric reliability under distribution shift]].
 
+### C. Full-vector DAC (new branch, 2026-09-20)
+
+A **separate** strand that shares this codebase and the CIFAR-100-C
+protocol but not the RGCL/GC-DAC mechanism: [[Full-Vector Density-Aware
+Calibration]] / [[H-FVDAC-01 Class-conditioned DAC density enables decision
+correction]] / [[2026-09-20 Full-Vector DAC POC]]. It class-conditions the
+*published* DAC operator's search domain and adds one non-negative scalar.
+It is explicitly **not** a rescue of strand A's `β=0` collapse or of the
+gate kill in strand B, and it does not revise either. No result has been
+interpreted yet.
+
 ## What this project does NOT yet establish
 
 - No oracle-union null baseline exists (head + a second independent predictor),
@@ -108,3 +119,48 @@ score modes); a softmax–kNN blend; KCal-lite and full KCal (learned projection
 ## Ancestor project
 
 [[Semantic Geometric Calibration RGC]]
+
+## Update 2026-09-21 — corrected preprocessing, layer-selection pilot, theory plan
+
+### D. Normalization repair (verified implementation issue)
+The unified benchmark evaluated CIFAR-100 clean test and CIFAR-100-C with ImageNet statistics on CIFAR-trained checkpoints:
+[[Legacy benchmark evaluated CIFAR-100 with ImageNet statistics on a CIFAR-trained checkpoint]],
+[[2026-09-21 Normalization Audit and Corrected Protocol]]. Corrected protocol `corrected_v2_train_norm` is now the benchmark default;
+legacy results (incl. strand C's FV-DAC pilot) are legacy-labelled, not revised. **Unresolved:** whether the RGC/IJCAI-era clean CIFAR-100 numbers share the issue.
+
+### E. Layer-selection pilot (strand C successor, 2026-09-21)
+[[2026-09-21 Layer-Selection Pilot]] / [[H-LAYER-01 Selected internal layers add decision value beyond logits]]: 12 block-output candidates, L ∈ {1,4,6,8},
+Family A (class-distance correction) and Family B (linear probes). Verdict under the frozen rule: no material evidence to continue *this tested family*
+(best +0.095 pp vs Vector Scaling +0.190 pp). Pooling sensitivity is the only axis with a hint (+0.3–0.44 pp) and is hypothesis-generating.
+
+### F. Theory work plan
+[[Theory Plan - Decision Utility, Layers, Compression and Risk Control]]; link to the AAAI PCE submission:
+[[From Similarity to Decisions - PCE (AAAI submission)]] (proposed extension is an idea, not a contribution).
+
+| Finding | Artifact | Evidence type | Integrity |
+|---|---|---|---|
+| Legacy CIFAR-100 test/C used ImageNet stats vs CIFAR training | [[2026-09-21 Normalization Audit and Corrected Protocol]] | code + array ranges + val-loss reproduction | verified implementation issue |
+| Layer pilot: no candidate arm ≥ +0.5 pp (2 seeds, 12 development cells) | [[2026-09-21 Layer-Selection Pilot]] | preregistered pilot, 2 seeds | under-replicated (n=2 seeds) |
+| 2×2 pooling +0.3–0.44 pp (Family A) | [[2026-09-21 Layer-Selection Pilot]] | pre-declared sensitivity | hypothesis-generating |
+
+## Update 2026-09-21 (second pass) — residual-evidence study
+### G. Residual decision-information study
+[[2026-09-21 Residual Evidence Study]] / [[H-RESID-01 Source-learnable residual decision information at layer3.22]]: `layer3.22` GAP / 2×2 / class-radius / logit-space evidence under one residual readout with a frozen output-only anchor.
+Frozen gate failed (criteria 1–4); **stop.** Development: hidden-evidence procedure +0.102 pp vs output-evidence control +0.118 pp (VS +0.128, anchor +0.108). Corrections to earlier interpretation were appended to the theory plan and the pilot card.
+
+| Finding | Artifact | Evidence type | Integrity |
+|---|---|---|---|
+| Residual-evidence procedure does not beat output-evidence control (2 dev checkpoints) | [[2026-09-21 Residual Evidence Study]] | preregistered dev stage, 2 seeds; confirmation not authorized | under-replicated (n=2 seeds), development conditions |
+| Legacy-normalization values in RGC-repo `calibration_comparison/ablation_*` JSONs | [[2026-09-21 Normalization Audit and Corrected Protocol]] (status note) | artifact vs paired diagnostic | verified for those artifacts; publication provenance unresolved |
+
+## Update 2026-09-21 (third pass) — representation atlas program
+### H. Atlas / distance / gate program
+[[2026-09-21 Representation Atlas Program]] / [[H-ATLAS-01 Accessible correction information across layers pooling and metrics]]: 34 sites × {GAP, 2×2, SPP}, kNN diagnostic, three metrics, small gates, temperature; 0.58 GPU-h. Result: alternatives exist at deep layer3 (10–14 % of base errors, vs 2.5 % logit kNN) but at 38–52 % harm on base-correct; clean-selected `layer4` candidates duplicate the head; H-A…H-E refuted. Prior closed studies untouched.
+
+| Finding | Artifact | Evidence type | Integrity |
+|---|---|---|---|
+| Deep-layer3 spatially pooled kNN supplies correct alternatives on 13 % of base errors at 38–41 % harm | [[2026-09-21 Representation Atlas Program]] | target-labelled diagnostic, 2 checkpoints, 2 000-image subset | exploratory, development cells |
+| Clean-selected hidden candidate + gate does not beat output controls | same | frozen mechanical evaluation | under-replicated (n=2) |
+
+## Update 2026-09-21 (fixed deep-candidate gate study) — [[2026-09-21 Fixed Deep Candidate Gate Study]], [[H-GATE-01 Candidate selection versus gate utility mismatch]]
+Status: completed (development, checkpoints 2 and 4). Fixed `layer3.22` 2×2 kNN candidate with C0/C1/Z0/Z1 ridge gates and n∈{625,1250,2500} learning curves: no consistent held-out benefit (Z1−Z0 clean +0.10/+0.13 pp, corruption −0.04/−0.04); deep gates ≈ output-evidence and layer4/output controls; practical targets not met; probability quality not improved. Deep candidate has 873/908 fit disagreements (the 52–151-event limit was layer4/output-specific) but H:W ≈ 3.8:1. Audit corrections to the atlas report appended in its card; TF32 mismatch cause verified (benchmark = TF32 convs, batch 128); seed-4 reconciliation deferred jobs 21537819–21. Measurement note for theory: standalone E[D] and gated E[gD] differ, but here neither exposed a large positive-utility region (top score bin ≈ 0 utility). Not established: absence of information; more-label benefit.

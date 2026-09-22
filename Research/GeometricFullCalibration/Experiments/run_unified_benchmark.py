@@ -80,6 +80,18 @@ from utils.method_metadata import (
 )
 from utils.stability_space import StabilitySpace
 from utils.logging_config import get_logger
+from utils.preprocessing_protocol import (
+    PROTOCOL_CORRECTED,
+    PROTOCOL_LEGACY,
+    PROTOCOLS as PREPROCESSING_PROTOCOLS,
+    TRAIN_NORMALIZATION as _AUDITED_TRAIN_NORMALIZATION,
+    IncompatiblePreprocessingError,
+    _canon as _canon_dataset_name,
+    eval_transform as _preprocessing_eval_transform,
+    preprocessing_stamp as _preprocessing_stamp,
+    require_compatible as _require_preprocessing_compatible,
+    write_stamp as _write_preprocessing_stamp,
+)
 from utils.model_utils import (
     PyTorchModelAdapter,
     construct_model_path,
@@ -214,6 +226,47 @@ def _git_provenance(repo_dir: str) -> Dict[str, Any]:
     }
 
 
+def _guard_preprocessing_protocol(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    """Reject artifacts whose preprocessing protocol differs from this run's,
+    then stamp the directories this run will write.
+
+    Checked: --fitted_state_dir (frozen calibrators), --output_dir's
+    intermediates (cached split arrays / logits / features / method
+    checkpoints), and --reuse_non_metric_from. An unstamped directory is a
+    legacy directory by definition. Stamping happens only after every check
+    passes, so a rejected run leaves no trace.
+    """
+    protocol = args.preprocessing_protocol
+    if protocol == PROTOCOL_CORRECTED and _canon_dataset_name(args.dataset) not in _AUDITED_TRAIN_NORMALIZATION:
+        parser.error(
+            f"--preprocessing_protocol {PROTOCOL_CORRECTED} is only defined for audited "
+            f"datasets {sorted(_AUDITED_TRAIN_NORMALIZATION)}; {args.dataset!r} has no audited "
+            "training normalization. Use the legacy protocol or audit its training loader first."
+        )
+    try:
+        if args.fitted_state_dir:
+            _require_preprocessing_compatible(
+                args.fitted_state_dir, args.dataset, protocol, "fitted state"
+            )
+        _require_preprocessing_compatible(
+            os.path.join(args.output_dir, "intermediates"), args.dataset, protocol,
+            "cached intermediates",
+        )
+        if getattr(args, "reuse_non_metric_from", ""):
+            _require_preprocessing_compatible(
+                os.path.join(args.reuse_non_metric_from, "intermediates"), args.dataset,
+                protocol, "reused non-metric intermediates",
+            )
+    except IncompatiblePreprocessingError as exc:
+        parser.error(str(exc))
+    # Legacy directories are never stamped: "no stamp" IS the legacy marker,
+    # and writing into a historical result directory would alter it.
+    if protocol != PROTOCOL_LEGACY:
+        if args.fitted_state_dir:
+            _write_preprocessing_stamp(args.fitted_state_dir, args.dataset, protocol)
+        _write_preprocessing_stamp(os.path.join(args.output_dir, "intermediates"), args.dataset, protocol)
+
+
 def _write_fit_once_provenance(args: argparse.Namespace) -> None:
     """
     Fit-once/evaluate-many protocol provenance (BENCHMARK_IMPLEMENTATION_PLAN.md
@@ -242,6 +295,9 @@ def _write_fit_once_provenance(args: argparse.Namespace) -> None:
         "resolved_config": resolved_config,
         "fitted_state_dir": args.fitted_state_dir,
         "fitted_state_hash": _fitted_state_dir_hash(args.fitted_state_dir),
+        "preprocessing": _preprocessing_stamp(
+            args.dataset, getattr(args, "preprocessing_protocol", PROTOCOL_LEGACY)
+        ),
         "clean_fitting_split": {
             "checkpoint_seed": args.seed, "dataset": args.dataset, "model": args.model,
             "note": "train/val split from utils.model_utils.get_data_loaders; always clean "
@@ -2379,6 +2435,13 @@ def _args_fingerprint(args: argparse.Namespace) -> str:
         "enable_rgcl_tail_hybrids": bool(args.enable_rgcl_tail_hybrids),
         "rgcl_tail_sources": str(args.rgcl_tail_sources),
     }
+    # A corrected-preprocessing run must never resume intermediates (cached
+    # split arrays, logits, features) produced under another protocol. The
+    # legacy fingerprint is left byte-identical so legacy directories still
+    # resume under --preprocessing_protocol legacy_v1_mixed_norm.
+    _protocol = str(getattr(args, "preprocessing_protocol", PROTOCOL_LEGACY))
+    if _protocol != PROTOCOL_LEGACY:
+        payload["preprocessing_protocol"] = _protocol
     # Preserve the historical fingerprint for L2 runs while ensuring that a
     # non-L2 invocation cannot reuse incompatible L2 intermediates.
     stab_metric = str(getattr(args, "stab_metric", "l2"))
@@ -2677,6 +2740,9 @@ def _build_summary_metadata(
             "test": int(len(test_labels)),
         },
         "shared_metric_module": "utils.unified_metrics",
+        "preprocessing": _preprocessing_stamp(
+            args.dataset, getattr(args, "preprocessing_protocol", PROTOCOL_LEGACY)
+        ),
         "stability_space": {
             "metric": args.stab_metric,
             "library": "fast_separation",
@@ -3254,6 +3320,22 @@ def main() -> None:
     )
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument(
+        "--preprocessing_protocol",
+        choices=list(PREPROCESSING_PROTOCOLS),
+        default=PROTOCOL_CORRECTED,
+        help=(
+            "Deterministic input normalization for every evaluation split. "
+            f"{PROTOCOL_CORRECTED} (default) normalizes clean test and CIFAR-*-C "
+            "with the statistics the checkpoints were trained with. "
+            f"{PROTOCOL_LEGACY} reproduces the historical CIFAR-100 behaviour "
+            "(ImageNet statistics on test / CIFAR-C while train/val used CIFAR "
+            "statistics) and exists ONLY to resume or reproduce legacy output "
+            "directories. Default changed for correctness (see "
+            "docs/normalization_audit.md); a directory produced under the other "
+            "protocol is rejected, never silently reused."
+        ),
+    )
+    parser.add_argument(
         "--corruption_type",
         type=str,
         default=None,
@@ -3689,6 +3771,7 @@ def main() -> None:
     _configure_default_method_flags(parser)
     args = parser.parse_args()
     _apply_disable_all_optional_methods(args)
+    _guard_preprocessing_protocol(args, parser)
     _write_fit_once_provenance(args)
 
     if args.reuse_non_metric_from:
@@ -3821,7 +3904,8 @@ def main() -> None:
             return
 
     train_loader, val_loader, test_loader, num_classes = get_data_loaders(
-        args.dataset, args.batch_size, seed=args.seed
+        args.dataset, args.batch_size, seed=args.seed,
+        preprocessing_protocol=args.preprocessing_protocol,
     )
 
     if args.corruption_type is not None or args.corruption_severity is not None:
@@ -3837,11 +3921,12 @@ def main() -> None:
         # stub in this repo. load_cifar_c_loader is the real, working
         # implementation already used elsewhere (utils/calibration_utils.py,
         # Experiments/layer_selection.py).
-        _corruption_normalize = transforms.Normalize(
-            mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-        )
-        _corruption_transform = transforms.Compose(
-            [transforms.ToTensor(), _corruption_normalize]
+        # Normalization comes from the ONE authoritative specification
+        # (utils/preprocessing_protocol.py). Legacy protocol reproduces the
+        # historical ImageNet-statistics transform exactly; the corrected
+        # protocol uses the statistics the checkpoint was trained with.
+        _corruption_transform = _preprocessing_eval_transform(
+            args.dataset, args.preprocessing_protocol, corruption=True
         )
         test_loader = load_cifar_c_loader(
             dataset_name=args.dataset,

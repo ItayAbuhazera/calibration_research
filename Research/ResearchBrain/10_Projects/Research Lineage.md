@@ -82,6 +82,20 @@ cross-project null or unifying experiment has been run.
 - [[Predicting geometric reliability under distribution shift]]
 - [[Top-label calibration and full-vector proper scoring form a Pareto frontier]]
 
+## Active side branch: full-vector DAC (2026-09-20)
+
+[[Full-Vector Density-Aware Calibration]] /
+[[H-FVDAC-01 Class-conditioned DAC density enables decision correction]] /
+[[2026-09-20 Full-Vector DAC POC]] branch off **published prior art**
+([[Beyond In-Domain Scenarios - Robust Density-Aware Calibration]]) rather
+than off stage 3 of the chain above. It shares this codebase and the
+CIFAR-100-C protocol, and it asks recurring question 5 ("when should
+geometric information change the decision?"), but its mechanism is DAC's
+own layer-wise kNN operator with a class-conditioned search domain — not
+RGCL/GC-DAC geometry. It is **not** an attempt to rescue any prior
+full-vector geometric fusion result, and nothing in it revises the earlier
+negative findings.
+
 ## Possible future branch: decision-native foundation models
 
 [[Decision-Native Foundation Models for Calibrated Parallel Decisions]] is a
@@ -92,3 +106,19 @@ historical geometric lineage, and no evidence currently establishes that its
 mechanism follows from—or should use—the existing geometric methods. Treat it
 as a possible branch pending a prior-art audit and a bounded POC, not as the
 next proven stage of this research line.
+
+## Update 2026-09-21
+
+FV-DAC (legacy protocol, closed) → normalization audit → [[2026-09-21 Layer-Selection Pilot]]. The recurring open *question* (not a claim, not an idea note):
+does a source-fitted geometric readout carry decision value that survives corruption, and how would one know without target labels?
+Cross-links: [[Theory Plan - Decision Utility, Layers, Compression and Risk Control]] (why clean-fitted utility is non-identifiable on an unlabeled target),
+[[From Similarity to Decisions - PCE (AAAI submission)]] (decision-target and harm-budget framing). The pilot's null is scoped to the tested combination.
+
+## Update 2026-09-21 (second pass)
+Layer pilot → [[2026-09-21 Residual Evidence Study]] (common residual readout, output-evidence and label-access controls, frozen gate): null. The recurring open *question* narrows to learnability from a small clean fit set rather than to which representation/pooling to read; still a question, not a claim or an idea note.
+
+## Update 2026-09-21 (third pass)
+Residual-evidence study → [[2026-09-21 Representation Atlas Program]]: the open *question* narrows to how a clean-trained selector could separate helpful from harmful mid-layer alternatives (candidate presence is established; safe selection is not). Question, not a claim or idea note.
+
+## Update 2026-09-21 (fixed deep-candidate gate study) — [[2026-09-21 Fixed Deep Candidate Gate Study]], [[H-GATE-01 Candidate selection versus gate utility mismatch]]
+Status: completed (development, checkpoints 2 and 4). Fixed `layer3.22` 2×2 kNN candidate with C0/C1/Z0/Z1 ridge gates and n∈{625,1250,2500} learning curves: no consistent held-out benefit (Z1−Z0 clean +0.10/+0.13 pp, corruption −0.04/−0.04); deep gates ≈ output-evidence and layer4/output controls; practical targets not met; probability quality not improved. Deep candidate has 873/908 fit disagreements (the 52–151-event limit was layer4/output-specific) but H:W ≈ 3.8:1. Audit corrections to the atlas report appended in its card; TF32 mismatch cause verified (benchmark = TF32 convs, batch 128); seed-4 reconciliation deferred jobs 21537819–21. Measurement note for theory: standalone E[D] and gated E[gD] differ, but here neither exposed a large positive-utility region (top score bin ≈ 0 utility). Not established: absence of information; more-label benefit.

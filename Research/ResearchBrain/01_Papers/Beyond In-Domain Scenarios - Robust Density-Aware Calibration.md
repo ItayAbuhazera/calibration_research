@@ -35,3 +35,29 @@ robust beyond the in-domain regime.
 - **Strongest vault overlap:** it is the closest published counterexample to the claim that clean-fitted neighbourhood information necessarily fails under corruption.
 - **Remaining gap:** calibration robustness is not oracle-recoverability or matched-risk routing quality; its argmax-preservation means it cannot recover complementary accuracy through class changes.
 - **Primary source:** https://proceedings.mlr.press/v202/tomani23a.html
+
+## Extension branch in this workspace (2026-09-20)
+
+[[Full-Vector Density-Aware Calibration]] takes DAC's representations,
+pooling, normalization, distance operator, layer set and reference bank
+unchanged, and class-conditions only the *search domain* so the operator
+returns a per-class distance vector instead of a scalar. See
+[[H-FVDAC-01 Class-conditioned DAC density enables decision correction]] and
+[[2026-09-20 Full-Vector DAC POC]].
+
+Two implementation facts about **this repository's** DAC, verified
+2026-09-20 from the frozen Phase 0/1 state (not claims about the paper):
+
+- The unified benchmark's `native_dac` uses **5** layers (`conv1`,
+  `layer1`..`layer4`); the repository's own docstrings describe the paper's
+  set as those 5 **plus LOGITS = 6**. The 5-layer version is the frozen
+  canonical baseline here. Recorded as a code/paper discrepancy, not fixed.
+- The fitted state retains the bank features but **not** the bank labels,
+  and discards neighbour IDs — which is exactly why the class-conditional
+  extension has to rebuild a labelled bank rather than read one off.
+
+## Addendum 2026-09-21 (layer study)
+The layer-selection pilot ([[2026-09-21 Layer-Selection Pilot]]) treats DAC's five sources as aliases of block outputs (`layer1`→`layer1.2`, `layer2`→`layer2.3`,
+`layer3`→`layer3.22`, `layer4`→`layer4.2`; `conv1` is the pre-BN stem used only for the temperature) and re-fits native DAC under the corrected preprocessing
+protocol: fitted weights are unchanged to 4e-5 (fit inputs were already consistently normalized). The paper-vs-repo layer-set discrepancy (paper includes LOGITS) is
+**not** resolved by this study; the five-layer benchmark version is used unchanged.
