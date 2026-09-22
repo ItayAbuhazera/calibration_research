@@ -42,3 +42,6 @@ Frozen spec hash in `results/atlas/freeze_manifest.json`; job table `docs/atlas_
 * The +0.8 pp oracle union did not include deep-layer3 spatial candidates (exact set in the fixed-gate audit) and is not a bound on feasible gains.
 * "TF32 near-ties": now verified — the benchmark path is TF32 convs at batch 128 (no autocast); reproducing it gives 0 base mismatches. The gates' 52–151 events were specific to the layer4/output candidates (deep candidate: 873/908 disagreements).
 * Scope: candidate alternatives exist; useful conditional intervention value is not established; finite-sample difficulty is plausible, not identified; improved repair recall in one layer is not an end-to-end spatial-pooling gain.
+
+## Pointer 2026-09-22
+Reconciliation with the corrected benchmark (referenced above as "seed-4 corruption cells still running") is now complete for the fixed-gate follow-up study — see [[2026-09-21 Fixed Deep Candidate Gate Study]]'s 2026-09-22 closure and correction sections. Standing cross-study summary: [[Current Evidence - Representation-Based Correction Program]].
