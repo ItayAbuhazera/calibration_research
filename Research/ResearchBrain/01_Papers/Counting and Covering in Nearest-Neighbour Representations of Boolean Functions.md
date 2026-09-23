@@ -1,6 +1,6 @@
 ---
 type: paper
-status: abstract_verified_theorem_pending
+status: theoretical bridge not established; full-text review pending
 year: 2026
 arxiv: 2609.23094
 access_date: 2026-09-22
@@ -35,3 +35,6 @@ These are open questions to motivate future theory work, cross-linked from [[The
 ## Next step (not performed here)
 
 Obtain the full text through a channel where PDF text extraction works (a non-cluster machine or an OCR-capable tool), read the theorem statements listed as open in the reading status above, and only then update this note's `status` to reflect a verified theorem-level reading.
+
+## Status update 2026-09-23
+Status set to "theoretical bridge not established; full-text review pending" (per the design memo, which reports that arXiv refused three fetches of the abstract, PDF and HTML). It does not block Stage 0 and authorizes no prototype experiment. Nothing in [[2026-09-22 Stage 0 Probe-Logit Increment Study]] uses or tests a result from this paper.
