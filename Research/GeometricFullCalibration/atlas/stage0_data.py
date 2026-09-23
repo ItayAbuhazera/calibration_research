@@ -29,8 +29,21 @@ def frozen_state(seed: int) -> Dict:
     return json.load(open(f"{LAYER_PILOT_ROOT}/checkpoint_seed{seed}/frozen_state.json"))
 
 
-def load_cell(seed: int, cell: str) -> Dict[str, np.ndarray]:
+def evidence_index(evidence):
+    """None -> layer3.22 (index 8); 'L<k>' -> probe layer index k (0-11); 'xckpt' -> other checkpoint's logits."""
+    if evidence is None:
+        return LAYER3_22_INDEX
+    if evidence == "xckpt":
+        return None
+    assert evidence.startswith("L") and 0 <= int(evidence[1:]) <= 11, evidence
+    return int(evidence[1:])
+
+
+def load_cell(seed: int, cell: str, evidence=None) -> Dict[str, np.ndarray]:
     """One condition's canonical arrays for one checkpoint seed.
+
+    evidence (Stage 0 evidence ablation, docs/stage0_evidence_ablation_spec.md): which 100-column
+    second predictor P is returned as "p". Default None keeps the Stage 0 behaviour (layer3.22).
 
     Returns z (N,100) float64, p_layer322 (N,100) float64 (pre-temperature, cast up from the
     cached float16 -- the quantization floor is NOT recovered by the cast, see spec Section 1),
@@ -41,7 +54,15 @@ def load_cell(seed: int, cell: str) -> Dict[str, np.ndarray]:
     fg = np.load(f"{FIXED_GATE_ROOT}/seed{seed}/per_sample_{cell}.npz")
 
     z = atlas["logits"].astype(np.float64)
-    p = pilot["raw__probe_logits"][:, LAYER3_22_INDEX, :].astype(np.float64)
+    idx = evidence_index(evidence)
+    if idx is None:
+        other = 6 - seed
+        assert other in (2, 4) and other != seed
+        p = np.load(f"{ATLAS_ROOT}/seed{other}/u0/{cell}.npz")["logits"].astype(np.float64)
+        fg_other = np.load(f"{FIXED_GATE_ROOT}/seed{other}/per_sample_{cell}.npz")
+        assert np.array_equal(fg_other["labels"].astype(np.int64), fg["labels"].astype(np.int64)), f"other-checkpoint labels differ ({cell})"
+    else:
+        p = pilot["raw__probe_logits"][:, idx, :].astype(np.float64)
     labels = fg["labels"].astype(np.int64)
     cand_j = fg["cand_j__deep"].astype(np.int64)
     base_pred_fg = fg["base_pred"].astype(np.int64)
@@ -66,8 +87,8 @@ def load_cell(seed: int, cell: str) -> Dict[str, np.ndarray]:
     }
 
 
-def load_all_cells(seed: int) -> Dict[str, Dict[str, np.ndarray]]:
-    return {cell: load_cell(seed, cell) for cell in spec.CONDITIONS}
+def load_all_cells(seed: int, evidence=None) -> Dict[str, Dict[str, np.ndarray]]:
+    return {cell: load_cell(seed, cell, evidence) for cell in spec.CONDITIONS}
 
 
 def probe_temperature_layer322(seed: int) -> float:

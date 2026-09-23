@@ -128,3 +128,19 @@ def test_accuracy_identity_W_minus_H_over_N():
     acc_new = (new_probs.argmax(1) == labels).mean()
     assert abs((acc_new - acc_base) - flips["delta_acc_from_flips"]) < 1e-12
 
+
+
+def test_evidence_default_is_layer322_and_variants_select_the_declared_source():
+    import numpy as np
+    seed, cell = 2, "fog_s3"
+    d0 = stage0_data.load_cell(seed, cell)
+    d8 = stage0_data.load_cell(seed, cell, "L8")
+    d11 = stage0_data.load_cell(seed, cell, "L11")
+    dx = stage0_data.load_cell(seed, cell, "xckpt")
+    raw = np.load(f"results/layer_pilot/checkpoint_seed{seed}/{cell}/per_sample.npz")["raw__probe_logits"]
+    other = np.load(f"results/atlas/seed4/u0/{cell}.npz")["logits"].astype(np.float64)
+    assert np.array_equal(d0["p"], d8["p"]) and np.array_equal(d0["p"], raw[:, 8, :].astype(np.float64))
+    assert np.array_equal(d11["p"], raw[:, 11, :].astype(np.float64))
+    assert np.array_equal(dx["p"], other)
+    assert np.array_equal(d0["z"], d11["z"]) and np.array_equal(d0["z"], dx["z"])
+    assert np.array_equal(d0["labels"], dx["labels"])

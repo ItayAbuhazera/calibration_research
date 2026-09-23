@@ -63,8 +63,8 @@ def build_rows(cells_data, image_ids: np.ndarray, view_rule: str, cell_assignmen
     raise ValueError(view_rule)
 
 
-def run_one(seed: int, regime: str, fold: int, fast: bool = False, force: bool = False) -> str:
-    out_dir = f"{OUT_ROOT}/seed{seed}/{regime}"
+def run_one(seed: int, regime: str, fold: int, fast: bool = False, force: bool = False, evidence=None) -> str:
+    out_dir = f"{OUT_ROOT}/seed{seed}/{regime}" if evidence is None else f"results/stage0_ablation/{evidence}/seed{seed}/{regime}"
     os.makedirs(out_dir, exist_ok=True)
     out_path = f"{out_dir}/fold{fold}.npz"
     if os.path.exists(out_path) and not force:
@@ -88,7 +88,7 @@ def run_one(seed: int, regime: str, fold: int, fast: bool = False, force: bool =
     cell_assign_train = cell_assignment_local[local_pos]
 
     view_rule = regime_view_rule(regime)
-    cells_data = stage0_data.load_all_cells(seed)
+    cells_data = stage0_data.load_all_cells(seed, evidence)
 
     ca_full = cell_assign_train if view_rule == "one" else None
     ca_fit = cell_assign_train[inner_mask_train] if view_rule == "one" else None
@@ -125,7 +125,7 @@ def run_one(seed: int, regime: str, fold: int, fast: bool = False, force: bool =
 
     # score all 13 conditions on the held-out fold
     record = {"test_idx": test_idx, "regime": regime, "seed": seed, "fold": fold,
-              "transform_check_max_dev": transform_check_max_dev, "n_train_images": len(train_images),
+              "transform_check_max_dev": transform_check_max_dev, "n_train_images": len(train_images), "evidence": str(evidence),
               "wall_time_s": None}
     for cond in spec.CONDITIONS:
         d = cells_data[cond]
@@ -162,6 +162,7 @@ if __name__ == "__main__":
     ap.add_argument("--fold", type=int, required=True, choices=range(5))
     ap.add_argument("--fast", action="store_true")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--evidence", default=None, help="ablation evidence: L<k> (probe layer k) or xckpt; default layer3.22 (Stage 0)")
     args = ap.parse_args()
-    p = run_one(args.seed, args.regime, args.fold, fast=args.fast, force=args.force)
+    p = run_one(args.seed, args.regime, args.fold, fast=args.fast, force=args.force, evidence=args.evidence)
     print("wrote", p)
