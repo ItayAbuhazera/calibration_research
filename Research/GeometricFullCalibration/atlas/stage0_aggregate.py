@@ -95,8 +95,16 @@ def cell_metrics(pooled, arm, cond) -> Dict:
     return {"accuracy": m["accuracy"], "nll": m["nll"], "brier": m["brier"]}
 
 
+def grouped_bootstrap_diff_of_diffs(diff_a: np.ndarray, diff_b: np.ndarray, gid: np.ndarray, seed: int) -> Dict:
+    """CI for (regime A's per-image effect) - (regime B's per-image effect), via ONE shared
+    resampling draw over image groups -- the "joint paired resamples" the frozen spec (Section 5)
+    requires for derived gaps, rather than subtracting two independently-bootstrapped CIs."""
+    return grouped_bootstrap(diff_a - diff_b, gid, seed=seed)
+
+
 def primary_and_secondary(gid: np.ndarray) -> Dict:
     out = {}
+    diff_arrays: Dict[int, Dict[str, Dict[str, np.ndarray]]] = {}
     for seed in spec.DEV_SEEDS:
         pooled = {r: pool_oof(seed, r) for r in REGIMES}
         missing = [r for r in REGIMES if pooled[r] is None]
@@ -105,6 +113,7 @@ def primary_and_secondary(gid: np.ndarray) -> Dict:
             continue
 
         seed_out = {"per_regime_per_cell": {}, "macro12": {}}
+        diff_arrays[seed] = {}
         for regime in REGIMES:
             p = pooled[regime]
             per_cell = {}
@@ -113,33 +122,44 @@ def primary_and_secondary(gid: np.ndarray) -> Dict:
             per_cell["clean"] = {"q_Z": cell_metrics(p, "q_Z", "clean"), "q_ZP": cell_metrics(p, "q_ZP", "clean")}
             seed_out["per_regime_per_cell"][regime] = per_cell
 
-            diff_acc_by_cell = np.mean([[per_image_correct(p, "q_ZP", c) - per_image_correct(p, "q_Z", c)] for c in spec.CELLS], axis=0)[0]
+            diff_macro12 = np.mean([per_image_correct(p, "q_ZP", c) - per_image_correct(p, "q_Z", c) for c in spec.CELLS], axis=0)
+            diff_clean = per_image_correct(p, "q_ZP", "clean") - per_image_correct(p, "q_Z", "clean")
+            diff_arrays[seed][regime] = {"macro12": diff_macro12, "clean": diff_clean}
+
             macro_delta_acc_pp = float(np.mean([per_cell[c]["q_ZP"]["accuracy"] - per_cell[c]["q_Z"]["accuracy"] for c in spec.CELLS])) * 100
-            boot = grouped_bootstrap(
-                np.mean([per_image_correct(p, "q_ZP", c) - per_image_correct(p, "q_Z", c) for c in spec.CELLS], axis=0),
-                gid, seed=BOOT_SEED + seed)
+            boot = grouped_bootstrap(diff_macro12, gid, seed=BOOT_SEED + seed)
             seed_out["macro12"][regime] = {"delta_acc_pp": macro_delta_acc_pp, "bootstrap_pp": {"estimate": boot["estimate"] * 100, "ci95_pp": [x * 100 for x in boot["ci95"]]}}
 
         out[str(seed)] = seed_out
 
-    # secondary contrasts: 8k vs 2.5k, 12-view vs 1-view, recoverability gap, clean increment
+    # secondary contrasts: 8k vs 2.5k, 12-view vs 1-view, recoverability gap, clean increment.
+    # Each derived gap is bootstrapped jointly (one shared resampling draw over image groups on
+    # the two regimes' per-image diff arrays), not by subtracting two independent CIs.
     secondary = {}
     for seed in spec.DEV_SEEDS:
         if out[str(seed)].get("status") == "incomplete":
             secondary[str(seed)] = {"status": "incomplete"}
             continue
-        m = out[str(seed)]["macro12"]
+        da = diff_arrays[seed]
+
+        def gap(name_a, key_a, name_b, key_b, salt):
+            point = out[str(seed)]["macro12"][name_a]["delta_acc_pp"] - out[str(seed)]["macro12"][name_b]["delta_acc_pp"] \
+                if key_a == "macro12" and key_b == "macro12" else \
+                float(np.mean(da[name_a][key_a]) - np.mean(da[name_b][key_b])) * 100
+            boot = grouped_bootstrap_diff_of_diffs(da[name_a][key_a], da[name_b][key_b], gid, seed=BOOT_SEED + salt + seed)
+            return {"estimate_pp": point, "ci95_pp": [x * 100 for x in boot["ci95"]]}
+
         secondary[str(seed)] = {
-            "independent_image_effect_T12": m["T-8k12"]["delta_acc_pp"] - m["T-2.5k12"]["delta_acc_pp"],
-            "independent_image_effect_T1": m["T-8k1"]["delta_acc_pp"] - m["T-2.5k1"]["delta_acc_pp"],
-            "view_effect_8k": m["T-8k12"]["delta_acc_pp"] - m["T-8k1"]["delta_acc_pp"],
-            "view_effect_2.5k": m["T-2.5k12"]["delta_acc_pp"] - m["T-2.5k1"]["delta_acc_pp"],
-            "recoverability_gap_8k": m["T-8k1"]["delta_acc_pp"] - m["S-8k1"]["delta_acc_pp"],
-            "recoverability_gap_2.5k": m["T-2.5k1"]["delta_acc_pp"] - m["S-2.5k1"]["delta_acc_pp"],
-            "S_clean_increment_pp_8k": out[str(seed)]["per_regime_per_cell"]["S-8k1"]["clean"]["q_ZP"]["accuracy"] * 100
-                                       - out[str(seed)]["per_regime_per_cell"]["S-8k1"]["clean"]["q_Z"]["accuracy"] * 100,
-            "S_clean_increment_pp_2.5k": out[str(seed)]["per_regime_per_cell"]["S-2.5k1"]["clean"]["q_ZP"]["accuracy"] * 100
-                                         - out[str(seed)]["per_regime_per_cell"]["S-2.5k1"]["clean"]["q_Z"]["accuracy"] * 100,
+            "independent_image_effect_T12": gap("T-8k12", "macro12", "T-2.5k12", "macro12", 100),
+            "independent_image_effect_T1": gap("T-8k1", "macro12", "T-2.5k1", "macro12", 200),
+            "view_effect_8k": gap("T-8k12", "macro12", "T-8k1", "macro12", 300),
+            "view_effect_2.5k": gap("T-2.5k12", "macro12", "T-2.5k1", "macro12", 400),
+            "recoverability_gap_8k": gap("T-8k1", "macro12", "S-8k1", "macro12", 500),
+            "recoverability_gap_2.5k": gap("T-2.5k1", "macro12", "S-2.5k1", "macro12", 600),
+            "S_clean_increment_pp_8k": {"estimate_pp": float(np.mean(da["S-8k1"]["clean"])) * 100,
+                 "ci95_pp": [x * 100 for x in grouped_bootstrap(da["S-8k1"]["clean"], gid, seed=BOOT_SEED + 700 + seed)["ci95"]]},
+            "S_clean_increment_pp_2.5k": {"estimate_pp": float(np.mean(da["S-2.5k1"]["clean"])) * 100,
+                 "ci95_pp": [x * 100 for x in grouped_bootstrap(da["S-2.5k1"]["clean"], gid, seed=BOOT_SEED + 800 + seed)["ci95"]]},
         }
     return {"primary_secondary_by_seed": out, "secondary_contrasts": secondary}
 
@@ -192,11 +212,19 @@ def convergence_and_lambda_edge_report() -> Dict:
             "selected_lambda_histogram": by_lambda, "rows": rows}
 
 
+MEMO_SANITY_REGIME = "T-8k12"  # the memo's Section 4 sanity control: T-8k12 only, fold 0, per checkpoint
+
+
 def shuffle_control_report(gid: np.ndarray) -> Dict:
     """Shuffled-P control vs the REAL (unshuffled) q_Z, matched to the same fold-0 held-out
     rows. Reported and printed BEFORE the primary contrast, per review feedback (docs/
     stage0_execution_spec.md Section 5): a positive gain here is an audit trigger, not
-    automatic evidence of leakage."""
+    automatic evidence of leakage.
+
+    Deviation 1 (docs/stage0_execution_spec.md Section 7): the memo's own sanity control is
+    T-8k12 only, fold 0, per checkpoint (2 real fits). This also ran T-2.5k12/T-8k1 as extra,
+    non-memo-specified shuffled checks -- labelled separately below so the memo-matching gate
+    isn't diluted by the additional ones."""
     out = {}
     for seed in spec.DEV_SEEDS:
         for regime in SHUFFLE_REGIMES:
@@ -227,7 +255,32 @@ def shuffle_control_report(gid: np.ndarray) -> Dict:
                 "audit_trigger_ge_0.2pp": gain_pp >= 0.2,
                 "converged": bool(shuf["converged"]), "retried": bool(shuf["retried"]),
                 "selected_lambda": float(shuf["selected_lambda"]),
+                "memo_specified_sanity_gate": regime == MEMO_SANITY_REGIME,
             }
+    memo_gate_entries = {k: v for k, v in out.items() if v.get("memo_specified_sanity_gate")}
+    memo_gate_passed = all(not v["audit_trigger_ge_0.2pp"] for v in memo_gate_entries.values()) if memo_gate_entries else None
+    return {"per_seed_regime": out, "memo_specified_gate_regime": MEMO_SANITY_REGIME,
+            "memo_specified_gate_passed": memo_gate_passed}
+
+
+def evaluation_only_exclusion_sensitivity(gid: np.ndarray) -> Dict:
+    """Primary Delta_T (T-8k12) recomputed with the test-vs-train pixel-duplicate images dropped
+    from EVALUATION only -- no refit (docs/stage0_execution_spec.md Section 2/7; memo: "the
+    primary keeps them, and a sensitivity analysis drops them from evaluation... needs no extra
+    fits")."""
+    excluded = set(stage0_data.test_vs_train_duplicate_test_indices())
+    out = {"excluded_test_indices": sorted(excluded), "n_excluded": len(excluded)}
+    for seed in spec.DEV_SEEDS:
+        pooled = pool_oof(seed, "T-8k12")
+        if pooled is None:
+            out[str(seed)] = {"status": "incomplete"}
+            continue
+        diff = np.mean([per_image_correct(pooled, "q_ZP", c) - per_image_correct(pooled, "q_Z", c) for c in spec.CELLS], axis=0)
+        valid_mask = np.ones(10000, dtype=bool)
+        valid_mask[list(excluded)] = False
+        boot = grouped_bootstrap(diff, gid, seed=BOOT_SEED + 900 + seed, valid_mask=valid_mask)
+        out[str(seed)] = {"delta_acc_pp": boot["estimate"] * 100, "ci95_pp": [x * 100 for x in boot["ci95"]],
+                           "n_evaluated_images": int(valid_mask.sum())}
     return out
 
 
@@ -248,6 +301,7 @@ def main():
     result["interpretation"] = interpretation(result)
     result["shuffle_control"] = shuffle_report
     result["convergence_and_lambda_edge_audit"] = conv_report
+    result["evaluation_only_exclusion_sensitivity"] = evaluation_only_exclusion_sensitivity(gid)
     json.dump(result, open(f"{OUT}/stage0c_aggregate.json", "w"), indent=1)
     print(json.dumps(result["interpretation"], indent=1))
     print("wrote", f"{OUT}/stage0c_aggregate.json")

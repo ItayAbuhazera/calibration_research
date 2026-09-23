@@ -110,6 +110,23 @@ def test_duplicate_groups() -> Dict[str, list]:
 
 
 def bank_test_duplicate_indices(seed: int) -> Dict[str, int]:
-    """Counts only (indices are not individually recoverable from the manifest, see spec Section 1)."""
+    """Counts only (indices are not individually recoverable from the atlas manifest, see spec Section 1)."""
     d = json.load(open(f"{ATLAS_ROOT}/shared/p0_manifest.json"))
     return d[f"seed{seed}"]["duplicate_audit"]
+
+
+def test_vs_train_duplicate_test_indices() -> list:
+    """Original test-set indices pixel-identical to a CIFAR-100 TRAIN image (materialized-pixel
+    hash of data/cifar-100-python's raw train/test batches, computed 2026-09-23; permitted under
+    the controlling prompt's "reading materialized pixels to verify IDs/duplicate hashes").
+
+    Computed against the full 50,000-image train set, a superset of either seed's 45,000-row
+    fitting bank -- so this is the conservative (superset-safe) exclusion list for both seeds.
+    The atlas manifest's per-seed counts (10 for seed 2, 9 for seed 4) are each <= len(this list)
+    because each seed's actual bank is a proper subset of the 50,000 train images; one of these
+    10 may not be memorized by seed 4's specific bank, making its exclusion slightly conservative
+    there (drops one extra, unproblematic row), never anti-conservative.
+    """
+    cache = "results/stage0/shared/test_vs_train_duplicate_indices.json"
+    d = json.load(open(cache))
+    return sorted(int(k) for k in d.keys())

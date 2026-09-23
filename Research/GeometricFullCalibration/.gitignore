@@ -81,3 +81,6 @@ eclipse
 plans/*
 plans
 *.pdf
+
+# immutable per-run code snapshots (regenerable via python -m atlas.snapshot); already-tracked ones stay tracked
+snapshots/

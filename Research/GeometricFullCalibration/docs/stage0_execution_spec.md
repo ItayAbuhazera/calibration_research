@@ -258,6 +258,124 @@ Study.md` once results exist — not before.
 
 ---
 
-## 7. Results
+## 7. Declared deviations from the real memo (appended 2026-09-23, before aggregate output was opened)
 
-*(appended after Stage 0a/0b/0c complete; §§0–6 unedited above this line)*
+§§0–6 above were frozen from the execution prompt alone: at freeze time the
+referenced memo could not be located by filesystem search (it is a **Claude
+Docs artifact**, `https://claude.ai/artifact/W8s4g99EuoemRSwdXB3bsJ`, "Next
+direction after the fixed-gate study — adversarial memo", not a repo file —
+found only after a collaborator identified it as a Claude Doc). It has now
+been read in full via the Claude Docs connector and compared line-by-line
+against §§0–6. This section records every mismatch found. No aggregate/
+interpretation output had been produced or viewed before this comparison
+(fitting jobs had run; the aggregator had not).
+
+**Matches (no deviation).** Primary contrast (Z vs Z+`layer3.22`-probe-logits,
+target-fitted, T-8k×12, 12-cell macro accuracy, per checkpoint); λ grid
+`{1e-1,1e-2,1e-3,1e-4,1e-5}` under mean-NLL scaling, chosen by inner-holdout
+NLL; inner 75/25 image-grouped holdout; all six regimes with row/image counts;
+**the 2,500-image subset shared identically between S-2.5k×1 and both
+T-2.5k×* regimes** (verified in code: `stage0_folds.py`'s
+`nested_2500_local_positions` is computed once per outer fold and reused by
+every regime whose name matches `T-2.5k*`/`S-2.5k*`); grouping unit = the
+original test image with **all 13 condition-copies** (the memo's own words,
+not a reviewer paraphrase — verified verbatim: "All 13 copies of an image
+(clean plus 12 cells) share one outer fold"); duplicate hashes drive fold
+grouping, with the train/test pixel-duplicate check applied **at evaluation
+only** (memo: "the primary keeps them, and a sensitivity analysis drops them
+from evaluation... needs no extra fits"); 2000-resample paired bootstrap over
+images; the outcome thresholds (material ≥+0.5pp with CI excluding 0 in both
+checkpoints; null = upper 95% CI endpoint <+0.2pp in both) reproduced exactly
+in `stage0_aggregate.py::interpretation`.
+
+**Deviation 1 — shuffled-P control scope (the one the collaborator flagged).**
+The memo's Section 4 sanity control is **one permuted-P fit per checkpoint,
+on the primary regime (T-8k×12) only**, fold 0 — its fit-count table's "1
+fold × 2 checkpoints × 6" is the same accounting convention as the primary
+row (6 = 5-λ inner path + 1 refit *sub-fits* of a single model fit, not 6
+distinct fits), i.e. **2 real permuted-P model fits total**. §5 above
+resolved the execution prompt's own ambiguous "six fits each" as **6 real
+fits**: `q_ZP` on `{T-8k×12, T-2.5k×12, T-8k×1}` × 2 checkpoints. This ran 3
+regimes where the memo specifies 1. The extra 2 regimes' shuffled-P runs are
+not harmful (more evidence, same permutation discipline) but are **not**
+part of the memo's declared sanity gate. Resolution: the T-8k×12 pair
+(seed 2, seed 4) is reported as *the* memo-specified sanity control and
+read first, per Section 7's "checked before the primary is computed" rule;
+the T-2.5k×12/T-8k×1 shuffled runs are reported separately, labelled
+"additional, not memo-specified."
+
+**Deviation 2 — permutation partition granularity.** The memo permutes P
+"among training rows and, separately, among evaluation rows within the
+fold" (2 partitions). §5 above permutes independently within 4 partitions
+(inner-fit, inner-val, outer-refit-train, outer-eval). This is a strictly
+finer, more conservative partition — it cannot leak across the memo's 2
+coarser boundaries, since each of its 4 sub-partitions nests inside one of
+the memo's 2. Kept as implemented; recorded as a difference in granularity,
+not a contradiction.
+
+**Deviation 3 — penalty scaling, unconfirmed by the memo either way.** The
+memo specifies the λ grid and "a ridge penalty on A and B" under "mean-NLL
+scaling," but states no explicit scalar convention on the penalty term
+itself (no formula with or without a 1/2 factor). §3 above's "no 1/2 factor"
+decision came from the **execution prompt's** explicit formula, not from the
+memo. This is not a detected conflict — the memo is simply silent here — but
+the memo cannot be cited as confirming it either. The magnitude effect flagged
+by the collaborator (no-1/2 roughly doubles the effective penalty at a given
+λ relative to a halved convention) is real; §9 below reports how often the
+selected λ lands on a grid edge (`atlas/stage0_aggregate.py::
+convergence_and_lambda_edge_report`), the diagnostic the collaborator asked
+for given the residual study's edge-selection failure mode.
+
+**Deviation 4 — the memo's own conditional budget guard.** The memo: "If the
+projected total exceeds 8 CPU-hours, drop the T-2.5k×12 regime." The
+execution prompt explicitly superseded the memo's 8-hour cap and instructed
+all six regimes regardless of projected cost (§1 above). T-2.5k×12 was run
+in full on both checkpoints, per the execution prompt's authority, which
+this document treats as controlling where the two conflict (§ preamble).
+Actual CPU time is reported in §9.
+
+**Implementation gap fixed by this section, before aggregate ran.** §2
+above described the evaluation-only duplicate-exclusion sensitivity but
+`atlas/stage0_aggregate.py` did not yet compute it. Added in the same commit
+that added this section (`evaluation_only_exclusion_sensitivity` in the
+aggregate output): recomputes the primary Δ_T and its bootstrap CI with the
+seed-specific test-vs-train pixel-duplicate images (`stage0_data
+.bank_test_duplicate_indices`) dropped from the evaluation pool only — no
+refit, per the memo.
+
+**Timing and process records (added 2026-09-23).**
+* *Outcome table:* the table below was fixed in the memo (Claude Doc last
+  updated 2026-09-22) before any Stage 0c result existed. Copying it here
+  is transcription, not a post-hoc choice.
+* *Derived-gap intervals:* the first `stage0_aggregate` run reported the
+  secondary contrasts as point estimates only. Those point estimates were
+  seen before the joint-resample intervals were added; the intervals were
+  added afterwards to conform to §5 (joint paired resamples for derived
+  gaps). The primary Δ_T, the shuffled-P control, the convergence audit and
+  the interpretation verdict were unchanged by that edit. The change is
+  reporting-only, but it was made after outputs were visible.
+* *Repository state:* commit `b55dd90` (code, §§0–6, snapshot
+  `stage0_v1_d0dcfd61aa88`) was pushed to `origin/main` by an agent-spawned
+  fork without user authorization, before this section existed. This
+  section, the aggregator changes and the loader change are in the
+  follow-up commit; history was not rewritten.
+* *Aggregation provenance:* the first aggregate run used the live tree.
+  A snapshot rerun and the hash comparison are recorded in §8.
+
+### Section 7 outcome-interpretation table (pre-declared verbatim from the memo, before any contrast was read)
+
+| Result pattern | Supported reading | Allocation consequence |
+|---|---|---|
+| Step 0 fails, or the sanity control gains ≥ +0.2 pp | Protocol or leakage fault | Fix the pipeline; compute no contrast until the control passes |
+| Primary material (Δ≥+0.5pp, CI excludes 0, both checkpoints) | A linear readout of the layer3.22 probe logits, fitted with target labels, recovers ≥0.5pp beyond target-fitted logits on these cells | Read the secondaries; Stage 1 eligible for a separate decision |
+| Primary small or uncertain | A small, under-resolved increment for this readout | No new allocation; report as is |
+| Primary null (upper 95% CI < +0.2pp, both checkpoints) | This restricted, target-supervised readout adds no material accuracy beyond target-fitted logits | The narrow allocation stop (tested evidence family, these cells, checkpoints 2/4 only) |
+| Checkpoints fall in different rows | Checkpoint-dependent result | Report per checkpoint; allocate as "small or uncertain" |
+| Recoverability gap Δ_T−Δ_S > 0 at 8k×1, CI excludes 0 | A source-to-target recoverability gap for this evidence/readout; cause unresolved (T1, regularization, distribution shift of P, readout mismatch) | No further clean-only study of this exact family without a stated mechanism |
+| Δ_S ≈ Δ_T, both positive at 8k×1 | Recoverable from clean supervision at ~8,000 images | Check S-2.5k×1 first; a new preregistered clean-only study on validation roles becomes justifiable |
+| Δ_T(8k×12) > Δ_T(8k×1) | Multiple corrupted views per image contribute | Record; lowers the case for clean-only designs of this family |
+| Δ_T(2.5k)≈0 but Δ_T(8k) material, matched views | Needs more independent images than clean fitting budgets provide | Record; relevant to future budget choices |
+
+## 8. Results
+
+*(appended after Stage 0a/0b/0c complete; §§0–7 unedited above this line)*
