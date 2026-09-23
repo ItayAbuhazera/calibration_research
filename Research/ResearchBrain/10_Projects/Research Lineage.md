@@ -125,3 +125,16 @@ Status: completed (development, checkpoints 2 and 4). Fixed `layer3.22` 2×2 kNN
 
 ## Pointer 2026-09-22
 Fixed-gate study reconciliation closed (array 21533078 + deferred jobs 21537819–21 all completed and verified); see that card's 2026-09-22 correction for the precision-corrected numbers (verdict unchanged). Standing cross-study summary: [[Current Evidence - Representation-Based Correction Program]].
+
+## Workflow transition 2026-09-23
+
+The representation-correction branch now records each new allocation through
+the canonical [`research workflow`](../../GeometricFullCalibration/docs/research_workflow.md)
+and [[Representation Correction Exposure Ledger]]. This is not a claim that
+earlier stages form a necessary theory sequence, and it does not rewrite their
+frozen protocols or results. The active question remains open only where a
+named prediction and distinguishing contrast could change a decision; see
+[[Serial method tests without discriminating outcomes]].
+
+## Update 2026-09-23 (Stage 0)
+Branch disposition after the fixed-gate study's closure: a target-supervised diagnostic ([[2026-09-22 Stage 0 Probe-Logit Increment Study]]) found that target-fitted stacking of the base logits and the fixed `layer3.22` probe logits gives a material development increment (+4.23 / +3.98 pp) that matched clean-fitted stacking does not recover (gap +3.35 / +2.91 pp at 8k×1). Parent question (what evidence beyond the logits is usable, and from which supervision?) stays open; the clean-only branch for this exact evidence family is stopped for allocation until a mechanism is stated. Stage 1 eligible, not started. Proposed hypothesis: [[H-STAGE0-01 Layer3.22 probe evidence is redundant with the logits on clean data but complementary under corruption, and clean supervision cannot identify the useful combination]]. This is development evidence from two checkpoints, not confirmation; see [[Representation Correction Exposure Ledger]].

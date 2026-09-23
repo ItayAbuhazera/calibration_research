@@ -1,5 +1,11 @@
 # Research Dashboard
 
+## Workflow navigation (2026-09-23)
+
+- Canonical rules: [`research workflow`](../../GeometricFullCalibration/docs/research_workflow.md)
+- Development/confirmation status: [[Representation Correction Exposure Ledger]]
+- Guardrail: [[Serial method tests without discriminating outcomes]]
+
 ## Current highest-priority experiment
 - [[2026-09-15 RGC Shift Recoverability]]
 
@@ -110,3 +116,6 @@ Status: completed (development, checkpoints 2 and 4). Fixed `layer3.22` 2×2 kNN
 ## Update 2026-09-22 (reconciliation closure + canonical synthesis)
 [[2026-09-21 Fixed Deep Candidate Gate Study]] reconciliation is **complete** (legacy array 21533078 tasks 20–23 and deferred jobs 21537819/20/21 all COMPLETED, verified via squeue+sacct; 26/26 cell-checkpoint rows reconciled) — the "seed-4 cells still running" lines above (third-pass update) are now historical, not current. A precision-corrected reading of the fixed-gate study's numbers (verdict unchanged; overstated "orders of magnitude" language corrected to the actual ≈15–44×) is appended to that card's 2026-09-22 correction section.
 **Current standing summary of this whole program:** [[Current Evidence - Representation-Based Correction Program]] (canonical claim matrix + open questions; read this before any of the individual cards above for "what do we know right now"). New research lead (abstract-only, not yet theorem-verified): [[Counting and Covering in Nearest-Neighbour Representations of Boolean Functions]].
+
+## Update 2026-09-23 (Stage 0 probe-logit increment) — [[2026-09-22 Stage 0 Probe-Logit Increment Study]], [[H-STAGE0-01 Layer3.22 probe evidence is redundant with the logits on clean data but complementary under corruption, and clean supervision cannot identify the useful combination]]
+Status: completed (development, checkpoints 2 and 4; target-supervised diagnostic). Target-fitted linear stacking of base logits and `layer3.22` probe logits beat the target-fitted logit-only readout by +4.23 / +3.98 pp macro accuracy (12 cells, T-8k×12; frozen rule: material); clean-fitted stacking at matched budgets did not (Δ_S −0.48 / −0.29 pp at 8k×1; gap +3.35 / +2.91 pp). Probe alone is below base in all conditions; target recalibration alone is ≈42–44 % of the gain over base (post-hoc). Allocation: recoverability-gap row applies (no further clean-only study of this family without a stated mechanism); Stage 1 eligible, not started; Stage 0d not started. Not established: any deployable method, a cause for the gap, specificity to `layer3.22`. Observation: [[Target-fitted stacking of logits and layer3.22 probe logits recovers a material increment that clean-fitted stacking on matched budgets does not]]. Weekly: [[2026-W39]]. Standing summary: [[Current Evidence - Representation-Based Correction Program]].
