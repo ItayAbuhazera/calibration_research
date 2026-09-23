@@ -84,3 +84,16 @@ The analyses below are **secondary and descriptive, with no decision attached**;
 **Note on R2.** R2 requires a near-zero clean-view increment. The smoke test above, seen before this addendum was written, suggested a clean increment of about +4 pp for the other checkpoint's logits (a second network's logits are a strong ensemble partner on clean images). An R2 failure is therefore expected and is weak evidence on its own about depth specificity; item 2 (the gap comparison, which removes the clean-image ensemble effect from the comparison) carries the informative contrast.
 
 **Order of reading.** (a) Check that each refit `q_Z` reproduces the Stage 0 `q_Z`; if any differs beyond numerical noise (max absolute probability difference > 1e-6), stop and report before reading any contrast. (b) Report the frozen R1–R3 verdict. (c) Then the secondaries above. Nothing else is started by this addendum.
+
+## Determinism check — recorded 2026-09-24 02:30, before any contrast was read (STOP RULE TRIPPED)
+
+Per the addendum, each refit `q_Z` was compared with the Stage 0 `q_Z` (max absolute probability difference > 1e-6 = stop and report). Only the check block of `results/stage0_ablation/report/ablation_aggregate.json` and a diagnostic on the 280 files were read; no R1–R3 value, contrast or secondary output has been read.
+* 97 of 280 files exceed 1e-6; maximum 2.1e-4. 183 files are identical (deviation exactly 0), including all 20+20 files of the T-2.5k×1 and S-2.5k×1 regimes for every evidence source.
+* Deviations occur only at 8k×1: T-8k×1 53 of 120 files, S-8k×1 44 of 120. Selected λ matches Stage 0 in all 280 files. Every ablation arm-fit converged with no retries and no λ at a grid edge (560 arm-fits).
+* Prediction effect: 37 argmax differences out of 7,280,000 predictions (0.0005 %); at most one image flips in any file.
+* The seed-4 S-2.5k×1 fold-0 file that was rewritten by the earlier agent rerun (Stage 0 deviation 6) agrees with the fresh refits (max deviation 6e-8 and 0), so that file is consistent with a clean refit.
+* Not established: the cause. Candidate: floating-point reduction order in multithreaded BLAS at the larger row count (Stage 0 jobs set only `OMP_NUM_THREADS`; the ablation jobs also set `MKL_NUM_THREADS` and `OPENBLAS_NUM_THREADS`, and nodes differ). This was not tested.
+* Operational effect is far below the accuracy scale of any contrast, but the stop rule was written as a threshold and it was crossed; continuing is left to the researcher.
+
+Aggregation history: the first aggregate job (21648590) hit its 1-hour limit (slow shared-disk I/O); the automatic engineering retry (21652108, same snapshot and code) completed in 3 min 20 s; the post-hoc secondary job (21652109, snapshot `stage0_abl_v2_a4cfd2046536`) completed. Outputs exist and are unread.
+
