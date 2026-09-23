@@ -70,3 +70,17 @@ None yet.
 ## Amendments / engineering recovery
 
 * 2026-09-24: card and spec frozen before any ablation fit.
+
+## Pre-results addendum (appended 2026-09-24, before any aggregate output was read)
+
+Written while the ablation jobs were running and the aggregate had not been opened. The frozen spec, rules R1–R3, thresholds and running jobs are unchanged. What had been seen before this addendum: the Stage 0 results (including the `layer3.22` reference Δ_T/Δ_S), and one fast-mode smoke test of the other-checkpoint evidence (seed 2, S-2.5k×1, fold 0, single λ, discarded) whose clean-view accuracy gain was about +4 pp.
+
+The analyses below are **secondary and descriptive, with no decision attached**; they cannot change the R1–R3 verdict, and R1–R3 is reported first.
+
+1. **Per evidence source, standalone and overlap.** Standalone accuracy of `P` (clean and per cell); disagreement rate of argmax `P` with argmax `Z` (clean and per cell); and the rate at which `P` and `Z` are both wrong on the same image (clean and per cell).
+2. **Gap comparison.** G(`layer3.22`) − G(other-checkpoint logits), with G = Δ_T − Δ_S (12-cell macro), at 8k×1 and 2.5k×1, per checkpoint, using a paired image-group bootstrap in which both sources' per-image effects are resampled with the same indices.
+3. **Clean increment versus recoverable share, across all 13 sources** (12 layer probes including `layer3.22`, plus the other checkpoint's logits): scatter of the S-8k×1 clean-view increment against Δ_S/Δ_T at 8k×1, with Spearman correlation, per checkpoint. Descriptive only. Δ_S/Δ_T is unstable when Δ_T is near zero; sources with Δ_T < 0.5 pp will be marked.
+
+**Note on R2.** R2 requires a near-zero clean-view increment. The smoke test above, seen before this addendum was written, suggested a clean increment of about +4 pp for the other checkpoint's logits (a second network's logits are a strong ensemble partner on clean images). An R2 failure is therefore expected and is weak evidence on its own about depth specificity; item 2 (the gap comparison, which removes the clean-image ensemble effect from the comparison) carries the informative contrast.
+
+**Order of reading.** (a) Check that each refit `q_Z` reproduces the Stage 0 `q_Z`; if any differs beyond numerical noise (max absolute probability difference > 1e-6), stop and report before reading any contrast. (b) Report the frozen R1–R3 verdict. (c) Then the secondaries above. Nothing else is started by this addendum.
