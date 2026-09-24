@@ -84,4 +84,7 @@ None.
 * Freeze commit: `4557b84` (spec `docs/regime_map_pilot_spec.md`, sha256 `b05119feb28b9ffc835a8d2d0cbd7a3f3408baf01c7e23ce53efcb542cdefa96`, verified equal to the copy inside the snapshot).
 * Immutable snapshot: `snapshots/regime_map_v1_d72302a1f54c` (tree hash `d72302a1f54c`, git head `4557b84bdd4374f60a61f770651fb9db6c6e37ef`). Note: the snapshot's tracked-diff hash includes another task's uncommitted non-code files (workflow, templates); no Stage 0 or pilot code file is uncommitted.
 * Weights: `results/regime_map/weights/resnet50-0676ba61.pth`, sha256 `0676ba61…fb8a`.
-* Smoke artifacts: `results/regime_map/smoke/smoke.json`; nothing else has been run.
+* Smoke artifacts: `results/regime_map/smoke/smoke.json`.
+* **Spec v2:** `docs/regime_map_pilot_spec_v2.md`, sha256 `30347cae04f54e34c5ff8e4dc72ec09ae54c0fabd47451093c2590fd6741996f`; committed in `27621e7` before any fit; snapshot `snapshots/regime_map_v2_c222e12d10a2` (tree hash `c222e12d10a2`, git head `27621e717be939355bf0f3fa216a0fd068246883`; spec copy verified equal). The v1 snapshot `regime_map_v1_d72302a1f54c` is superseded and was not used for any fit.
+* **Launched 2026-09-24** from the v2 snapshot: jobs 21657923–21657960 (`results/regime_map/ledger.json`); GPU: state (a) extraction, two fine-tuning runs, six state extractions; CPU: 28 fit arrays (5 folds each); aggregation 21657960.
+* **Ledger:** the Codex workflow changes (including the authoritative exposure ledger) are still uncommitted, so the exposure entries are kept in this card and in the ablation card and were not appended to the ledger.
