@@ -1,0 +1,82 @@
+---
+type: experiment
+status: prepared_frozen_not_launched
+date: 2026-09-24
+project: Full-Vector Geometric Calibration
+benchmark: CIFAR-100 / CIFAR-100-C (12 development cells), ImageNet-pretrained ResNet-50 (four model states), Stage 0 protocol
+preregistered: true
+experiment_type: mechanism discrimination (target-supervised development diagnostic)
+parent_question: Is source-recoverability of intermediate evidence controlled by its clean redundancy given Z, rather than by coming from the same network or from mid-depth?
+exposure_ledger: "[[Representation Correction Exposure Ledger]]"
+evidence_scope: unpublished_repository_analysis (development; not confirmation; not a deployable method)
+tags: [regime-map, pretrained, resnet50, recoverability, clean-redundancy, frozen-not-launched]
+---
+
+# 2026-09-24 — Regime-map pilot: does clean redundancy control source-recoverability?
+
+**Status: designed, frozen and smoke-tested; NOT launched. Waiting for the researcher's go.** Frozen specification (authoritative): repo `docs/regime_map_pilot_spec.md`. Parents: [[2026-09-22 Stage 0 Probe-Logit Increment Study]], [[2026-09-24 Stage 0 Evidence Ablation]]; hypothesis (proposed): [[H-STAGE0-01 Layer3.22 probe evidence is redundant with the logits on clean data but complementary under corruption, and clean supervision cannot identify the useful combination]]. Workflow: uncommitted working-tree version of `docs/research_workflow.md` and the card template (they had not landed in git).
+
+## Question and confound
+Stage 0 (ResNet-101 from scratch): the mid-depth probe evidence is target-recoverable but not source-recoverable; the evidence ablation found that another checkpoint's logits are source-recoverable. **"Same network" and "clean-redundant given `Z`" are fully confounded** in the existing data. This pilot creates a source of evidence from the *same* network whose clean redundancy is manipulated, and tests whether recoverability follows it.
+Claim scope: development diagnostic; ImageNet-pretrained ResNet-50, CIFAR-100, the 12 development cells; one training seed per state; not a deployable method, not an information ceiling, not confirmation.
+
+## Design (details in the spec)
+* **Backbone:** torchvision ResNet-50 `IMAGENET1K_V1`, file `resnet50-0676ba61.pth`, sha256 `0676ba61b6795bbe1773cffd859882e5e297624d384b6993f7c9e683e722fb8a`.
+* **Resolution policy:** corrupt at native 32×32, bilinear upsample to 224×224, ImageNet normalization, one policy for every state; strict-fp32 extraction. Chosen because the pretrained stem/BN are matched to ~224 inputs, a modified stem would discard the pretrained `conv1`, and corruptions are defined at 32×32.
+* **States:** (a) frozen backbone + linear head trained on CIFAR-100 train; (b) the same backbone fine-tuned end to end for 10 epochs, saved after epoch 1 (b1), epoch 3 (b3) and the final epoch (b10) as a dose.
+* **Evidence `P`:** GAP linear probe on the last block of `layer3`, trained on each state's own 45k train features with the layer-pilot recipe, unchanged across states.
+* **Protocol:** Stage 0 code, folds, λ grid, bootstrap and cell assignment unchanged; T and S fits at 8k×1 (primary) and 2.5k×1 on the 12 development cells; S fits scored on clean held-out images for the clean increment. One training seed per state; the image-bootstrap intervals do not capture training-seed variance.
+
+## Competing explanations and predictions
+* **Clean redundancy controls recoverability:** the state whose `P` is clean-complementary (a, if the manipulation works) has a small gap; fine-tuning (b-final) makes `P` clean-redundant and the gap large; along the doses the gap does not fall as the clean increment falls.
+* **Same-network / mid-depth is what matters (redundancy irrelevant):** `P` is clean-complementary in (a) yet still not source-recoverable, so gap(a) ≈ gap(b-final).
+* **The Stage 0 pattern is specific to the from-scratch ResNet-101:** gap(b-final) is small or has an interval including 0.
+
+## Primary contrast and frozen rules (first matching row is the verdict; thresholds and the dose condition are defined in the spec §5)
+gap = Δ_T − Δ_S at 8k×1 (12-cell macro, pp); clean increment = S-8k×1 `q_ZP` − `q_Z` on clean held-out images.
+
+| # | Outcome | Reading | Decision |
+|---|---|---|---|
+| 1 | Manipulation check fails: clean increment(a) ≤ +0.3 pp, or its interval includes 0 | Regime (a) did not create a clean-complementary source from the same network | Inconclusive; report only |
+| 2 | gap(b-final) interval includes 0, or gap(b-final) < +1.0 pp | The Stage 0 pattern does not transfer to a fine-tuned pretrained model | Restrict the claim to from-scratch ResNet-101 |
+| 3 | gap(a) ≥ 0.8 × gap(b-final) | `P` is clean-complementary yet still not source-recoverable | Kill "clean redundancy controls recoverability" |
+| 4 | gap(a) ≤ 0.5 × gap(b-final), **and** the interval of gap(b-final) − gap(a) excludes 0, **and** across doses the gap does not fall as the clean increment falls | Supports clean redundancy as the controlling variable | Propose a confirmation and baselines package; do not start it |
+| 5 | otherwise | Inconclusive | Report |
+
+Dose condition (frozen): for every pair of states (i, j) with clean increment(i) − clean increment(j) ≥ 0.3 pp, gap(j) ≥ gap(i) − 0.3 pp. Report absolute accuracies per state (base `Z`, `q_Z`, `q_ZP`, T and S, macro and clean, NLL and Brier); compare gaps **within** a state, since base accuracy and robustness differ between (a) and (b). Practical scale: the +0.3 pp manipulation floor and +1.0 pp final-gap floor are chosen relative to the Stage 0 magnitudes (gap ≈ +2.9 to +3.4 pp, clean increment ≈ 0); interval and power limits: single training seed, image bootstrap only.
+
+## Data and fitting access; exposure-ledger entry
+Data: CIFAR-100 train (45k) and validation (5k) benchmark splits for backbone fine-tuning, head and probe fits; the 10,000 test images × 13 conditions for Stage 0 fits and evaluation, as in Stage 0. Target-label access: T regimes as in Stage 0; S regimes use clean labels.
+**Proposed entry for the authoritative [[Representation Correction Exposure Ledger]] (not written there because that file carries a separate task's uncommitted edits; append it when the researcher approves):** *"CIFAR-100 test images (same 10,000 IDs), clean plus the 12 development cells; ImageNet-pretrained ResNet-50, four model states; T-regime labels fit target-supervised readouts, S regime clean labels; development reuse of exposed cells on a new model, not confirmation. Backbone fine-tuning, head and probe hyperparameters use only the CIFAR-100 train/validation splits. Not accessed: checkpoints 1/3/5, the 11 unused CIFAR-100-C families, any new test data."*
+
+## Cost (measured, RTX 4090) and execution envelope
+Measured in the smoke test: fine-tuning 1,715 img/s, fp32 extraction 1,695 img/s, peak 6.6 GB.
+
+| item | GPU-hours |
+|---|---|
+| fine-tuning 10 epochs (449,280 image passes) | 0.07 |
+| feature and probe extraction, 4 states × (45k + 5k + 130k) images | 0.12 |
+| head and probe fits | ≈ 0.05 |
+| subtotal | ≈ 0.25 |
+| contingency ×2 | **≈ 0.5 GPU-h** |
+
+Plus ≈ 9 CPU-hours of Stage 0 fits (80 runs). Well under the 24 GPU-hour bound, so no cheaper variant is proposed. Prepared submit script `atlas/regime_submit.py` (not run). Engineering recovery allowed; scientific changes need an amendment; no reserved data; no push without approval.
+
+## Pre-launch verification (smoke test; not results)
+GPU smoke on a few hundred images (`results/regime_map/smoke/smoke.json`): weights hash asserted; fine-tune step and throughput; fp32 extraction; head and probe fits (600 train / 500 val / 300 test images, 3 conditions); artifact schema loads in the Stage 0 loader format. The Stage 0 fit path with `--regime-state` reproduced Stage 0's `q_ZP` exactly when fed a copy of Stage 0's arrays. Unit test for the rule table (`tests/test_stage0.py::test_regime_map_rules_follow_the_frozen_table`). Two GPU nodes (`cs-4090-09`, and `cs-4090-05` flagged unavailable) failed CUDA initialization or were unavailable and are excluded in the submit script. Smoke numbers are not used for any decision.
+
+## Results
+*(none — not launched)*
+
+## Protocol deviations
+None.
+
+## Post-mortem and allocation
+*(after the run)*
+
+## Amendments / engineering recovery
+* 2026-09-24: specification and card frozen before any fit; snapshot and hashes recorded below.
+
+## Provenance
+* Frozen spec sha256: see `docs/regime_map_pilot_spec.frozen.sha256`.
+* Code commit and snapshot: recorded below after freeze.
