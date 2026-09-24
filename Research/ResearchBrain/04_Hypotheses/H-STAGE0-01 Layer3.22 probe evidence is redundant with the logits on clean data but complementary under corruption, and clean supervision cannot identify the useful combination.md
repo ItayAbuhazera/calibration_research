@@ -73,3 +73,6 @@ Source: [[2026-09-24 Stage 0 Evidence Ablation]] (ResNet-101, checkpoints 2 and 
 * **Wording.** Use "stage-specific (layer3.x plateau)", not "layer3.22-specific": Δ_T is ≈ +2.6 to +2.9 pp across layer3.7–layer3.22 and ≈ 0 at layer4.1. `P_4.2` reads the same penultimate features as `Z`, so the depth claim rests mainly on layer4.0/4.1 ≈ 0 (layer4.0 ≈ +0.7 pp) and on the layer3 plateau, not on the primary contrast D_A alone.
 * **Status:** proposed; nothing established.
 
+## Caveat added 2026-09-24 (recipe confound on the deep-layer leg; appended)
+The "layer4.x ≈ 0" leg of the depth claim (layer4.0 Δ_T ≈ +0.7, layer4.1 ≈ 0, layer4.2 < 0) was measured with layer-pilot probes whose selected λ = 0.01 sat at the **upper edge of the λ grid** {1e-4, 1e-3, 1e-2}, with inner-fit NLL still falling at the edge (Phase 1B card). A possible recipe confound: better-tuned layer4 probes could differ from what was measured. The contrast against the same-network mid-depth plateau and the `Z_other` contrast are unaffected by this (the `Z_other` result does not use these probes). The regime-map pilot (spec v2) applies a grid-edge extension rule to every probe.
+

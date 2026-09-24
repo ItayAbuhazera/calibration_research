@@ -34,9 +34,19 @@ WEIGHTS_SHA256 = "0676ba61b6795bbe1773cffd859882e5e297624d384b6993f7c9e683e722fb
 CIFAR_MEAN, CIFAR_STD = (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
 IN_MEAN, IN_STD = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
 RES = 224
-STATES = ("a", "b1", "b3", "b10")
+FT_SEEDS = {1: 20260924, 2: 20260925}      # two independent fine-tuning runs (spec v2); state (a) has one fit (frozen backbone)
+STATES = ("a",) + tuple(f"b{e}_s{k}" for k in (1, 2) for e in (1, 3, 10))
 FT_EPOCHS, FT_SAVE = 10, (1, 3, 10)
-FT_SEED = 20260924
+FT_SEED = FT_SEEDS[1]                       # default for build_model's head init when no seed is given
+MAX_EDGE_EXT = 2                            # grid-edge rule (spec v2): extend by one decade toward the edge, at most twice per direction
+
+
+def split_state(state):
+    """'a' -> ('a', None, None); 'b3_s2' -> ('b', 3, 2)."""
+    if state == "a":
+        return "a", None, None
+    b, sk = state.split("_s")
+    return "b", int(b[1:]), int(sk)
 PROBE_GRID = (1e-4, 1e-3, 1e-2)            # layer-pilot recipe, unchanged across states
 HEAD_GRID = (1e-4, 1e-3, 1e-2, 1e-1, 1.0)  # regime (a) linear head only (deeper, so a wider grid)
 NC = spec.NUM_CLASSES
@@ -110,12 +120,14 @@ def extract(m, arr, bs=250, device="cuda"):
     return torch.cat(g3), torch.cat(g4), torch.cat(lg)
 
 
-def finetune(save_dir=f"{OUT}/ckpt", epochs=FT_EPOCHS, save_epochs=FT_SAVE, max_steps=None, bs=128, device="cuda", log=print):
-    torch.manual_seed(FT_SEED); np.random.seed(FT_SEED)
+def finetune(ft_seed_idx=1, save_dir=None, epochs=FT_EPOCHS, save_epochs=FT_SAVE, max_steps=None, bs=128, device="cuda", log=print):
+    seed = FT_SEEDS[ft_seed_idx]
+    save_dir = save_dir or f"{OUT}/ckpt/s{ft_seed_idx}"
+    torch.manual_seed(seed); np.random.seed(seed)
     Xtr, ytr = load_split("train")
     Xva, yva = load_split("val")
     X = torch.from_numpy(np.ascontiguousarray(Xtr)).to(device); Y = torch.from_numpy(ytr).to(device)
-    m = build_model().to(device)
+    m = build_model(seed=seed).to(device)
     dec, nodec = [], []
     for n_, p in m.named_parameters():
         (nodec if p.ndim == 1 else dec).append(p)
@@ -160,27 +172,44 @@ def finetune(save_dir=f"{OUT}/ckpt", epochs=FT_EPOCHS, save_epochs=FT_SAVE, max_
         hist.append(rec); log(json.dumps(rec))
         if ep in save_epochs:
             torch.save(m.state_dict(), f"{save_dir}/b{ep}.pt")
-    json.dump({"history": hist, "weights": WEIGHTS_NAME, "weights_sha256": WEIGHTS_SHA256, "seed": FT_SEED, "epochs": epochs}, open(f"{save_dir}/finetune_log.json", "w"), indent=1)
+    json.dump({"history": hist, "weights": WEIGHTS_NAME, "weights_sha256": WEIGHTS_SHA256, "seed": seed, "seed_index": ft_seed_idx, "epochs": epochs}, open(f"{save_dir}/finetune_log.json", "w"), indent=1)
     return hist
 
 
 def fit_linear(x_tr, y_tr, x_val_fit, y_val_fit, grid, device="cuda"):
     """Layer-pilot recipe: L2-normalized GAP -> z-score -> multinomial LR (Calibrators.layer_readouts.fit_probe);
-    lambda by inner-FIT NLL; scalar temperature by 1-D NLL on inner-FIT (stored, not applied)."""
+    lambda by inner-FIT NLL; scalar temperature by 1-D NLL on inner-FIT (stored, not applied).
+    Grid-edge rule (spec v2, identical for every state and for the head and every probe): if the selected lambda is at a
+    grid edge, extend the grid by one decade toward that edge and refit, at most MAX_EDGE_EXT times per direction."""
     from Calibrators import layer_readouts as LR
     xt = F.normalize(x_tr, dim=1).to(device); yt = torch.from_numpy(y_tr).to(device)
     xv = F.normalize(x_val_fit, dim=1).to(device); yv = torch.from_numpy(y_val_fit).to(device)
-    table, best = {}, None
+    fitted = {}
+
+    def fit(lam):
+        lam = float(f"{lam:.6g}")
+        if lam not in fitted:
+            pr = LR.fit_probe(xt, yt, NC, lam)
+            fitted[lam] = (pr, float(F.cross_entropy(pr.logits(xv), yv)))
+        return lam
+
     for lam in grid:
-        pr = LR.fit_probe(xt, yt, NC, lam)
-        nll = float(F.cross_entropy(pr.logits(xv), yv))
-        table[str(lam)] = nll
-        if best is None or nll < best[1] - 1e-12:
-            best = (pr, nll, lam)
-    pr = best[0]
+        fit(lam)
+    up = dn = 0
+    pick = lambda: min(fitted, key=lambda l: (round(fitted[l][1], 12), -l))       # min NLL; ties -> stronger regularization
+    while True:
+        b = pick()
+        if b == max(fitted) and up < MAX_EDGE_EXT:
+            fit(b * 10); up += 1
+        elif b == min(fitted) and dn < MAX_EDGE_EXT:
+            fit(b / 10); dn += 1
+        else:
+            break
+    lam = pick(); pr = fitted[lam][0]
     pr.temperature = LR.fit_probe_temperature(pr.logits(xv).cpu().numpy(), y_val_fit)
-    return pr, {"selected_lambda": best[2], "inner_fit_nll_by_lambda": table, "temperature": pr.temperature,
-                "lambda_at_grid_edge": best[2] in (grid[0], grid[-1])}
+    return pr, {"selected_lambda": lam, "inner_fit_nll_by_lambda": {str(k): v[1] for k, v in sorted(fitted.items())},
+                "initial_grid": list(grid), "extensions_up": up, "extensions_down": dn, "temperature": pr.temperature,
+                "at_grid_edge_after_extension": lam in (max(fitted), min(fitted))}
 
 
 def apply_linear(pr, g):
@@ -195,7 +224,8 @@ def build_state(state, out_dir=None, n_train=None, n_val=None, n_test=None, cond
     strict_fp32()
     out_dir = out_dir or f"{OUT}/{state}"
     os.makedirs(out_dir, exist_ok=True)
-    m = build_model(None if state == "a" else torch.load(f"{OUT}/ckpt/{state}.pt", map_location="cpu")).to(device)
+    kind, ep, sk = split_state(state)
+    m = build_model(None if kind == "a" else torch.load(f"{OUT}/ckpt/s{sk}/b{ep}.pt", map_location="cpu")).to(device)
     Xtr, ytr = load_split("train"); Xva, yva = load_split("val")
     def strat(X, y, n):  # smoke-test subset: first n/100 rows of every class (keeps all classes present)
         k = max(1, n // NC)
@@ -210,7 +240,7 @@ def build_state(state, out_dir=None, n_train=None, n_val=None, n_test=None, cond
     summary = {"state": state, "weights": WEIGHTS_NAME, "weights_sha256": WEIGHTS_SHA256, "resolution": RES, "n_train": len(ytr), "n_val": len(yva)}
     P, info_p = fit_linear(g3t, ytr, g3v[fit_idx], yva[fit_idx], PROBE_GRID, device)
     summary["probe_layer3_gap"] = info_p
-    if state == "a":
+    if kind == "a":
         H, info_h = fit_linear(g4t, ytr, g4v[fit_idx], yva[fit_idx], HEAD_GRID, device)
         summary["head_linear_layer4_gap"] = info_h
         zfun = lambda g4, lg: apply_linear(H, g4)

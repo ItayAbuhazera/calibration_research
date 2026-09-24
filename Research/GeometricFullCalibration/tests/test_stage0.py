@@ -146,16 +146,34 @@ def test_evidence_default_is_layer322_and_variants_select_the_declared_source():
     assert np.array_equal(d0["labels"], dx["labels"])
 
 
-def test_regime_map_rules_follow_the_frozen_table():
-    from atlas.regime_aggregate import evaluate_rules
+def test_regime_map_rules_follow_the_frozen_v2_table():
+    from atlas.regime_aggregate import evaluate_rules, combine_seeds
     mk = lambda gap, lo, ci, cl: {"gap8": gap, "gap8_ci": [lo, gap + 0.3], "clean_inc": ci, "clean_inc_ci": [cl, ci + 0.3]}
     base = {"a": mk(0.5, 0.2, 2.0, 1.5), "b1": mk(1.5, 1.0, 1.0, 0.5), "b3": mk(2.2, 1.7, 0.4, 0.1), "b10": mk(3.0, 2.6, 0.0, -0.3)}
-    assert evaluate_rules(base, [1.9, 3.0])["row"] == 4                       # supports
-    bad = dict(base, a=mk(0.5, 0.2, 0.2, 0.1)); assert evaluate_rules(bad, [1.9, 3.0])["row"] == 1   # manipulation check
-    bad = dict(base, a=mk(0.5, 0.2, 2.0, -0.1)); assert evaluate_rules(bad, [1.9, 3.0])["row"] == 1  # interval includes 0
-    bad = dict(base, b10=mk(0.9, 0.5, 0.0, -0.3)); assert evaluate_rules(bad, [0.0, 1.0])["row"] == 2  # final gap < 1.0
-    bad = dict(base, b10={"gap8": 3.0, "gap8_ci": [-0.1, 3.3], "clean_inc": 0.0, "clean_inc_ci": [-0.3, 0.3]}); assert evaluate_rules(bad, [1.9, 3.0])["row"] == 2
-    bad = dict(base, a=mk(2.5, 2.0, 2.0, 1.5)); assert evaluate_rules(bad, [0.0, 1.0])["row"] == 3       # gap(a) >= 0.8 gap(b)
-    assert evaluate_rules(dict(base, a=mk(1.8, 1.4, 2.0, 1.5)), [0.2, 2.0])["row"] == 5                   # between 0.5 and 0.8
-    bad = dict(base, b3=mk(0.2, 0.0, 0.4, 0.1)); r = evaluate_rules(bad, [1.9, 3.0]); assert r["row"] == 5 and not r["dose_condition_ok"]  # gap falls as clean increment falls
-    assert evaluate_rules(base, [-0.2, 3.0])["row"] == 5                                                  # difference interval includes 0
+    assert evaluate_rules(base, [1.9, 3.0])["row"] == 5                                                  # supports
+    bad = dict(base, a=mk(0.5, 0.2, 0.2, 0.1)); assert evaluate_rules(bad, [1.9, 3.0])["row"] == 1      # manipulation check 1
+    bad = dict(base, a=mk(0.5, 0.2, 2.0, -0.1)); assert evaluate_rules(bad, [1.9, 3.0])["row"] == 1
+    bad = dict(base, b10=mk(3.0, 2.6, 0.5, 0.2)); assert evaluate_rules(bad, [1.9, 3.0])["row"] == 2    # manipulation check 2 (b10 clean increment > +0.3)
+    bad = dict(base, b10=mk(0.9, 0.5, 0.0, -0.3)); assert evaluate_rules(bad, [0.0, 1.0])["row"] == 3   # final gap < 1.0
+    bad = dict(base, b10={"gap8": 3.0, "gap8_ci": [-0.1, 3.3], "clean_inc": 0.0, "clean_inc_ci": [-0.3, 0.3]}); assert evaluate_rules(bad, [1.9, 3.0])["row"] == 3
+    bad = dict(base, a=mk(2.5, 2.0, 2.0, 1.5)); assert evaluate_rules(bad, [0.0, 1.0])["row"] == 4      # gap(a) >= 0.8 gap(b)
+    assert evaluate_rules(dict(base, a=mk(1.8, 1.4, 2.0, 1.5)), [0.2, 2.0])["row"] == 6                  # between 0.5 and 0.8
+    bad = dict(base, b3=mk(0.2, 0.0, 0.4, 0.1)); r = evaluate_rules(bad, [1.9, 3.0]); assert r["row"] == 6 and not r["dose_condition_ok"]
+    assert evaluate_rules(base, [-0.2, 3.0])["row"] == 6                                                 # difference interval includes 0
+    s1, s2 = evaluate_rules(base, [1.9, 3.0]), evaluate_rules(dict(base, b3=mk(0.2, 0.0, 0.4, 0.1)), [1.9, 3.0])
+    assert combine_seeds({"seed1": s1, "seed2": s1})["row"] == 5 and combine_seeds({"seed1": s1, "seed2": s2})["row"] is None
+
+
+def test_grid_edge_rule_extends_up_to_two_decades_toward_the_edge():
+    import numpy as np, torch
+    from atlas import regime_map as RM
+    rng = np.random.default_rng(0)
+    x = torch.tensor(rng.normal(size=(300, 20)), dtype=torch.float32); y = rng.integers(0, 3, 300)
+    old, old_dt = RM.NC, torch.get_default_dtype(); RM.NC = 3; torch.set_default_dtype(torch.float32)   # stage0_fit sets float64 globally
+    try:
+        pr, info = RM.fit_linear(x, y, x[:100], y[:100], (1e-4, 1e-3, 1e-2), device="cpu")   # noise features: the best lambda is large -> extend upward
+    finally:
+        RM.NC = old; torch.set_default_dtype(old_dt)
+    assert info["extensions_up"] <= 2 and info["extensions_down"] <= 2
+    assert set(map(float, info["inner_fit_nll_by_lambda"])) >= {1e-4, 1e-3, 1e-2}
+    assert info["selected_lambda"] >= 1e-2 and info["extensions_up"] >= 1

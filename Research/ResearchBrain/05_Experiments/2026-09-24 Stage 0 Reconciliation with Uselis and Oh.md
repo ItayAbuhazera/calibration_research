@@ -67,3 +67,7 @@ Not a test of the published claim, not a statement about ResNet-18 or their pool
 
 ## Post-mortem and allocation
 Primary contrast: none (descriptive). More plausible: recipe (grid edge) and pooling/architecture differences; less plausible: OOD-versus-ID selection and baseline strength. Indistinguishable from cache: pooling, architecture, recipe. Allocation: none; Phase 2 (a pretrained ResNet-50) is a separate frozen card. Review status: self-audit, single author.
+
+## Update 2026-09-24 (after attempting to read the paper; appended)
+See [[Intermediate Layer Classifiers for OOD generalization]]. The PDF could not be read here; the protocol summary comes from the arXiv HTML render via a summarizing tool and is unverified. Reported protocol: **frozen public pretrained models** (TorchVision ResNets), GAP for ResNets, affine probes trained with Adam for 100 epochs with **ℓ1** regularization, hyperparameters and layer chosen on an **OOD validation set** (best layer among `l ≤ L−2`), baseline last-layer retraining (DFR); the one quoted CIFAR-C number (+2 to +5 pp) is for CIFAR-10-C. Two candidate explanations are added to the list above, neither testable from our cache: **(6) pretrained frozen backbone vs a CIFAR-trained-from-scratch ResNet-101** (the regime-map pilot's state (a) is the matching test), and **(7) probe regularizer and optimizer (ℓ1/Adam vs L2/L-BFGS)**. The task's statement that the claim covers CIFAR-100-C is not confirmed by this reading.
+

@@ -19,9 +19,9 @@ def smoke():
     RM.strict_fp32()
     out = {"weights_sha256": RM.weights_ok(), "device": torch.cuda.get_device_name(0)}
     # 1) fine-tune throughput (fp16 autocast), 40 steps after a 5-step warmup
-    RM.finetune(save_dir=f"{RM.OUT}/smoke/ckpt", max_steps=5, log=print)
+    RM.finetune(1, save_dir=f"{RM.OUT}/smoke/ckpt", max_steps=5, log=print)
     torch.cuda.synchronize()
-    r = RM.finetune(save_dir=f"{RM.OUT}/smoke/ckpt", max_steps=40, log=print)
+    r = RM.finetune(1, save_dir=f"{RM.OUT}/smoke/ckpt", max_steps=40, log=print)
     out["finetune_throughput"] = r
     # 2) strict-fp32 extraction throughput on 2000 test-condition images
     m = RM.build_model().to("cuda")
@@ -45,9 +45,10 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["finetune", "state", "smoke"])
     ap.add_argument("--state", choices=RM.STATES)
+    ap.add_argument("--ft-seed", type=int, choices=(1, 2), default=1)
     a = ap.parse_args()
     if a.cmd == "finetune":
-        RM.finetune()
+        RM.finetune(a.ft_seed)
     elif a.cmd == "state":
         RM.build_state(a.state)
     else:

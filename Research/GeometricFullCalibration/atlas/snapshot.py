@@ -18,7 +18,7 @@ def main(tag="atlas_v1"):
                 continue
             files += [os.path.join(r, f) for f in fs if f.endswith((".py", ".txt", ".md"))]
     files += [os.path.join("data", f) for f in os.listdir("data") if f.endswith(".py")]
-    files += [f for f in ("docs/atlas_program_spec.md", "docs/fixed_gate_study_spec.md", "docs/stage0_execution_spec.md", "docs/stage0_evidence_ablation_spec.md", "docs/regime_map_pilot_spec.md") if os.path.exists(f)]
+    files += [f for f in ("docs/atlas_program_spec.md", "docs/fixed_gate_study_spec.md", "docs/stage0_execution_spec.md", "docs/stage0_evidence_ablation_spec.md", "docs/regime_map_pilot_spec.md", "docs/regime_map_pilot_spec_v2.md") if os.path.exists(f)]
     h = hashlib.sha256()
     manifest = {}
     for f in sorted(files):

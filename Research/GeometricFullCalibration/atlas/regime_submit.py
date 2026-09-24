@@ -1,8 +1,8 @@
-"""PREPARED, NOT LAUNCHED (docs/regime_map_pilot_spec.md section 8): submit the regime-map pilot DAG from an immutable snapshot.
+"""Submit the regime-map pilot DAG (docs/regime_map_pilot_spec_v2.md section 8) from an immutable snapshot.
 
-  python -m atlas.regime_submit snapshots/<snapshot_dir>      # only after the researcher's go
+  python -m atlas.regime_submit snapshots/<snapshot_dir>
 
-fine-tune (GPU) -> state extraction b1,b3,b10 (GPU, afterok); state a extraction (GPU, independent) ->
+two fine-tuning runs (GPU) -> state extraction b1,b3,b10 per seed (GPU, afterok); state a extraction (GPU, independent) ->
 Stage 0 fits per state (CPU arrays, afterok) -> aggregation (afterok on all fits).
 """
 import json
@@ -36,10 +36,11 @@ def sb(snap, stage, cmd, deps=(), gpu=False, mem="32G", hours="03:00:00", cpus=4
 
 
 def main(snap):
-    ft = sb(snap, "finetune", f"{PY} -m atlas.regime_run finetune", gpu=True, hours="02:00:00", mem="48G")
     st = {"a": sb(snap, "state_a", f"{PY} -m atlas.regime_run state --state a", gpu=True, hours="02:00:00", mem="48G")}
-    for s in ("b1", "b3", "b10"):
-        st[s] = sb(snap, f"state_{s}", f"{PY} -m atlas.regime_run state --state {s}", deps=[ft], gpu=True, hours="02:00:00", mem="48G")
+    for k in (1, 2):
+        ft = sb(snap, f"finetune_s{k}", f"{PY} -m atlas.regime_run finetune --ft-seed {k}", gpu=True, hours="02:00:00", mem="48G")
+        for e in (1, 3, 10):
+            st[f"b{e}_s{k}"] = sb(snap, f"state_b{e}_s{k}", f"{PY} -m atlas.regime_run state --state b{e}_s{k}", deps=[ft], gpu=True, hours="02:00:00", mem="48G")
     fits = []
     for s, jid in st.items():
         for rg in REGIMES:
