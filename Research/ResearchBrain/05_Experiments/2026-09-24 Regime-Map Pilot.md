@@ -66,14 +66,57 @@ Plus ≈ 15 CPU-hours of Stage 0 fits (140 runs). Well under the 24 GPU-hour bou
 ## Pre-launch verification (smoke test; not results)
 GPU smoke on a few hundred images (`results/regime_map/smoke/smoke.json`): weights hash asserted; fine-tune step and throughput; fp32 extraction; head and probe fits (600 train / 500 val / 300 test images, 3 conditions); artifact schema loads in the Stage 0 loader format. The Stage 0 fit path with `--regime-state` reproduced Stage 0's `q_ZP` exactly when fed a copy of Stage 0's arrays. Unit test for the rule table (`tests/test_stage0.py::test_regime_map_rules_follow_the_frozen_table`). Two GPU nodes (`cs-4090-09`, and `cs-4090-05` flagged unavailable) failed CUDA initialization or were unavailable and are excluded in the submit script. Smoke numbers are not used for any decision.
 
-## Results
-*(none yet)*
+## Results (2026-09-24; artifacts `results/regime_map/report/regime_aggregate.json`, `results/regime_map/<state>/summary.json`; fits from snapshot `regime_map_v2_c222e12d10a2`; the spec file is unchanged, so its sidecar hash still verifies)
+
+**Validation before reading contrasts.** 150 of 150 jobs completed; 140 fold files (7 states × 4 regimes × 5 folds); 280 arm-fits, 0 unconverged, 0 retried, 0 at a Stage 0 λ-grid edge. Fine-tuning reached val accuracy 0.852 / 0.854 at epoch 10 (seeds 1/2; train 0.991 / 0.992). Every probe selected λ = 1e-3 and the head of (a) λ = 1e-2, all interior: **the grid-edge rule triggered no extension** (0 extensions in any state). Stage 0 fitter λ: 1e-3 in ≥ 36 of 40 fits per state, otherwise 1e-2 or 1e-4.
+
+**Frozen v2 verdict: row 4 fires in both fine-tuning seeds → "kill 'clean redundancy controls recoverability'" (P clean-complementary yet not source-recoverable).** Manipulation check 1 passed (clean increment(a) +3.82 pp [3.20, 4.43]); manipulation check 2 passed (b10 clean increment −0.20 and −0.74 pp, not > +0.3); row 3 not met (gap(b10) +1.53 [1.26, 1.78] and +2.04 [1.79, 2.28], both > +1.0 with intervals excluding 0); row 4 met because gap(a) = +2.77 ≥ 0.8 × gap(b10) in both seeds. gap(b10) − gap(a) = −1.24 [−1.63, −0.86] (seed 1) and −0.73 [−1.12, −0.33] (seed 2): the gap is **larger** in (a), not smaller. The dose condition is violated in both seeds (pairs (a, b1), (a, b3), (a, b10) in seed 1; (a, b1), (a, b10), (b3, b10) in seed 2); it would only matter for row 5.
+
+**Per state, 12-cell macro (pp, 95% image-bootstrap intervals; seed 1 = fine-tuning seed 20260924, seed 2 = 20260925; (a) is one fit).**
+
+| state | clean increment (S-8k×1) | Δ_S (8k×1) | Δ_T (8k×1) | gap = Δ_T − Δ_S (8k×1) | gap (2.5k×1) |
+|---|---|---|---|---|---|
+| a | +3.82 [+3.20, +4.43] | +2.02 [+1.73, +2.31] | +4.79 [+4.47, +5.13] | +2.77 [+2.43, +3.09] | +2.24 [+1.90, +2.63] |
+| b1_s1 | +1.65 [+1.06, +2.26] | +1.47 [+1.23, +1.74] | +3.20 [+2.91, +3.49] | +1.73 [+1.42, +2.04] | +0.89 [+0.52, +1.24] |
+| b3_s1 | -0.16 [-0.70, +0.43] | +0.17 [-0.06, +0.40] | +1.81 [+1.55, +2.08] | +1.63 [+1.36, +1.92] | +0.91 [+0.57, +1.23] |
+| b10_s1 | -0.20 [-0.66, +0.24] | -0.72 [-0.90, -0.54] | +0.81 [+0.58, +1.04] | +1.53 [+1.26, +1.78] | +0.69 [+0.40, +0.98] |
+| b1_s2 | +1.05 [+0.48, +1.66] | +0.24 [-0.01, +0.50] | +2.45 [+2.15, +2.73] | +2.21 [+1.88, +2.51] | +1.27 [+0.91, +1.61] |
+| b3_s2 | -0.21 [-0.74, +0.32] | -0.51 [-0.74, -0.29] | +2.02 [+1.76, +2.29] | +2.54 [+2.27, +2.82] | +1.12 [+0.79, +1.45] |
+| b10_s2 | -0.74 [-1.19, -0.31] | -1.01 [-1.19, -0.84] | +1.02 [+0.80, +1.25] | +2.04 [+1.79, +2.28] | +1.02 [+0.74, +1.31] |
+
+**Absolute accuracies (%; macro 12 cells / clean).**
+
+| state | `Z` | `P` alone | disagreement P vs Z (macro) | T-8k×1 `q_Z` → `q_ZP` (macro) | S-8k×1 `q_Z` → `q_ZP` (macro) | S-8k×1 clean `q_Z` → `q_ZP` |
+|---|---|---|---|---|---|---|
+| a | 48.8 / 72.4 | 46.3 / 72.4 | 0.491 | 49.4 → 54.2 | 45.4 → 47.4 | 68.1 → 72.0 |
+| b1_s1 | 39.6 / 65.4 | 43.9 / 73.0 | 0.551 | 51.4 → 54.6 | 45.0 → 46.4 | 73.5 → 75.2 |
+| b3_s1 | 47.0 / 77.6 | 44.5 / 75.7 | 0.482 | 55.3 → 57.1 | 48.3 → 48.5 | 79.2 → 79.0 |
+| b10_s1 | 53.7 / 84.2 | 45.8 / 77.0 | 0.436 | 58.8 → 59.6 | 52.5 → 51.8 | 83.0 → 82.8 |
+| b1_s2 | 43.5 / 69.0 | 45.0 / 74.2 | 0.525 | 53.1 → 55.5 | 46.3 → 46.5 | 74.0 → 75.0 |
+| b3_s2 | 45.0 / 74.9 | 44.5 / 75.5 | 0.490 | 55.2 → 57.3 | 48.2 → 47.7 | 78.6 → 78.4 |
+| b10_s2 | 53.3 / 84.6 | 45.5 / 77.7 | 0.445 | 59.1 → 60.2 | 52.1 → 51.1 | 83.6 → 82.9 |
+
+Selected λ (all interior; see `summary.json`): probes 1e-3 in all seven states; head of (a) 1e-2.
+
+## Interpretation (labelled; not established)
+* As defined in the frozen rules, clean redundancy did **not** control source-recoverability here: the state whose `P` is most clean-complementary (a: clean increment +3.8 pp, Δ_S +2.0 pp) still has the largest gap (+2.8 pp), and along the doses the clean increment falls (+3.8 → about +1.0/+1.7 → about −0.2 → −0.2/−0.7) while the gap does not rise (about +2.8 → 1.7/2.2 → 1.6/2.5 → 1.5/2.0).
+* Fine-tuning shrinks the target-fit gain too (Δ_T +4.8 → +0.8/+1.0) and turns Δ_S negative; the gap is an absolute difference bounded by the headroom, so a smaller Δ_T in the fine-tuned states also pushes the gap down (post-hoc reading; the frozen rule is on the absolute gap).
+* The Stage 0 recoverability gap is **not** confined to the from-scratch ResNet-101: it is present in the pretrained ResNet-50 in every state (gap +1.5 to +2.8 pp at 8k×1, intervals excluding 0), including the frozen backbone.
+* Still open: which of clean non-identifiability, source-fit regularization, shift of `P` under corruption, or readout mismatch produces the gap; the earlier explanation that "same network" versus "clean-redundant" separates the from-scratch sources is not supported by this manipulation in this design.
+
+## Not established
+One backbone family and resolution policy (224 upsampling), one probe layer, two fine-tuning seeds (image-bootstrap intervals only; no training-seed variance beyond the two-seed comparison), development cells reused; nothing about a deployable method, confirmation, other layers or architectures. Row 4 kills only the specific claim "clean redundancy, as manipulated here, controls recoverability of this `P`".
 
 ## Protocol deviations
-None.
+None. The grid-edge rule was never triggered.
 
 ## Post-mortem and allocation
-*(after the run)*
+* Primary contrast: gap(b10) − gap(a) < 0 with intervals excluding 0 in both seeds; the frozen kill row fires.
+* Explanations: "clean redundancy controls recoverability" made less plausible for this evidence and readout; the four remaining candidates for the recoverability gap are not separated.
+* Reasoning-chain stage tested: transfer/identifiability of a fixed evidence source under a restricted linear readout, on a pretrained backbone with manipulated clean redundancy.
+* Claim supported / not supported: the recoverability gap is not tied to the from-scratch ResNet-101 nor to clean redundancy as manipulated here; not supported: any mechanism.
+* Allocation: none started. Vault notes for the hypothesis, Current Evidence and the exposure ledger have **not** been updated with this result (awaiting the researcher's go). Nothing pushed since `fb2e7bd`.
+* Review status: single-author agent-assisted; the rule outcome was computed by the pre-frozen, unit-tested code.
 
 ## Amendments / engineering recovery
 * 2026-09-24: v1 specification and card frozen before any fit (commit `4557b84`, spec sha256 `b05119fe…defa96`).
