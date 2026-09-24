@@ -63,3 +63,13 @@ Go (for a future confirmation of the specific claim): on the authorized reserved
 ## Prior-art threats
 
 Target-label stacking of intermediate layers is known (the memo cites Uselis et al. 2025 and Lee et al. 2023 for target-label re-reading of intermediate layers); last-layer retraining with extra inputs is the ordinary reading of a target-fit win. Novelty is unknown and is not claimed.
+
+## Update 2026-09-24 (evidence ablation; appended, nothing above rewritten)
+
+Source: [[2026-09-24 Stage 0 Evidence Ablation]] (ResNet-101, checkpoints 2 and 4, 12 development cells; development evidence).
+* **The generic-fusion competitor (explanation 5's "any comparably informative second predictor gives the same pattern") is falsified in this setting.** The one non-same-network source tested, `Z_other` (the other checkpoint's logits), is source-recoverable: Δ_S ≈ Δ_T (+3.46 / +2.53 vs +3.55 / +2.51 pp at 8k×1) with a clean increment of +2.4 pp, whereas every same-network layer probe has Δ_S ≤ about +0.3 pp.
+* **Conditional redundancy survives, but on one contrasting source.** The statement that probe evidence is redundant with the logits on clean data and complementary under corruption is not contradicted; the contrast against it is a single source (`Z_other`).
+* **Confound stays open: "same network" and "clean-redundant" are fully confounded** in the current data (all same-network probes are clean-redundant; the only cross-network source is clean-complementary). This is what the pretrained-model regime map (Phase 2, frozen, not started) is designed to separate.
+* **Wording.** Use "stage-specific (layer3.x plateau)", not "layer3.22-specific": Δ_T is ≈ +2.6 to +2.9 pp across layer3.7–layer3.22 and ≈ 0 at layer4.1. `P_4.2` reads the same penultimate features as `Z`, so the depth claim rests mainly on layer4.0/4.1 ≈ 0 (layer4.0 ≈ +0.7 pp) and on the layer3 plateau, not on the primary contrast D_A alone.
+* **Status:** proposed; nothing established.
+
