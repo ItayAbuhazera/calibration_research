@@ -79,4 +79,7 @@ None.
 
 ## Provenance
 * Frozen spec sha256: see `docs/regime_map_pilot_spec.frozen.sha256`.
-* Code commit and snapshot: recorded below after freeze.
+* Freeze commit: `4557b84` (spec `docs/regime_map_pilot_spec.md`, sha256 `b05119feb28b9ffc835a8d2d0cbd7a3f3408baf01c7e23ce53efcb542cdefa96`, verified equal to the copy inside the snapshot).
+* Immutable snapshot: `snapshots/regime_map_v1_d72302a1f54c` (tree hash `d72302a1f54c`, git head `4557b84bdd4374f60a61f770651fb9db6c6e37ef`). Note: the snapshot's tracked-diff hash includes another task's uncommitted non-code files (workflow, templates); no Stage 0 or pilot code file is uncommitted.
+* Weights: `results/regime_map/weights/resnet50-0676ba61.pth`, sha256 `0676ba61…fb8a`.
+* Smoke artifacts: `results/regime_map/smoke/smoke.json`; nothing else has been run.
