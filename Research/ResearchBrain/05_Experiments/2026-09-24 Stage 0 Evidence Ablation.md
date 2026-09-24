@@ -97,3 +97,24 @@ Per the addendum, each refit `q_Z` was compared with the Stage 0 `q_Z` (max abso
 
 Aggregation history: the first aggregate job (21648590) hit its 1-hour limit (slow shared-disk I/O); the automatic engineering retry (21652108, same snapshot and code) completed in 3 min 20 s; the post-hoc secondary job (21652109, snapshot `stage0_abl_v2_a4cfd2046536`) completed. Outputs exist and are unread.
 
+## Pre-reading note — noise bound on the `q_Z` deviations (2026-09-24, before any contrast was read)
+
+Decision (researcher): treat the `q_Z` deviations as numerical noise **if** a worst-case bound is below 0.1 pp. Script `atlas/stage0_ablation_noise_bound.py` (reads only `q_Z` predictions; output `results/stage0_ablation/report/noise_bound.json`). Entries are argmax differences between the refit `q_Z` and the Stage 0 `q_Z`, summed over the 5 folds: **12 corrupted cells / clean copy** (N = 10,000 images per condition).
+
+| evidence | s2 T-8k1 | s2 S-8k1 | s2 T-2.5k1 | s2 S-2.5k1 | s4 T-8k1 | s4 S-8k1 | s4 T-2.5k1 | s4 S-2.5k1 |
+|---|---|---|---|---|---|---|---|---|
+| L11 | 0/0 | 2/0 | 0/0 | 0/0 | 1/0 | 1/0 | 0/0 | 0/0 |
+| xckpt | 0/0 | 1/0 | 0/0 | 0/0 | 1/0 | 2/0 | 0/0 | 0/0 |
+| L0 | 0/0 | 1/0 | – | – | 1/0 | 1/0 | – | – |
+| L1 | 0/0 | 1/0 | – | – | 1/0 | 1/0 | – | – |
+| L2 | 0/0 | 1/0 | – | – | 0/0 | 1/0 | – | – |
+| L3 | 0/0 | 1/0 | – | – | 1/0 | 1/0 | – | – |
+| L4 | 0/0 | 1/0 | – | – | 1/0 | 1/0 | – | – |
+| L5 | 0/0 | 1/0 | – | – | 1/0 | 1/0 | – | – |
+| L6 | 0/0 | 1/0 | – | – | 1/0 | 1/0 | – | – |
+| L7 | 0/0 | 1/0 | – | – | 1/0 | 1/0 | – | – |
+| L9 | 0/0 | 1/0 | – | – | 1/0 | 1/0 | – | – |
+| L10 | 0/0 | 1/0 | – | – | 1/0 | 1/0 | – | – |
+
+Worst case = every differing prediction flips correctness against the true class, effect = differences / N. Largest single-cell bound 0.010 pp (one image in one cell); largest 12-cell macro bound 0.0008 pp per entry; largest bound for any Δ_T − Δ_S gap 0.0025 pp; clean-view increments 0 (no clean differences at all). Total 37 differences. D_A shares one refit `q_Z` arm, so its bound equals a single entry's. **All bounds are below the 0.1 pp stop threshold, so reading proceeds.** Sensitivity check to be reported with the primary: D_A recomputed with Stage 0's `q_Z` as the common reference for both arms (labelled sensitivity). After reading, not as a gate: one T-8k×1 fold rerun with OMP/MKL/OpenBLAS threads pinned to 1, checked against Stage 0.
+
