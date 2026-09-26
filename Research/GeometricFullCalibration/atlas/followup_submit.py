@@ -15,10 +15,10 @@ LEDGER = "results/regime_map_followup/ledger.json"
 STATES = ("a", "b1_s1", "b3_s1", "b10_s1", "b1_s2", "b3_s2", "b10_s2")
 
 
-def sb(snap, stage, cmd, deps=(), mem="16G", hours="02:00:00", cpus=4, array=None):
+def sb(snap, stage, cmd, deps=(), mem="16G", hours="02:00:00", cpus=4, array=None, gpu=False):
     name = os.path.basename(snap)
     logdir = os.path.abspath("results/regime_map_followup/logs"); os.makedirs(logdir, exist_ok=True)
-    args = ["sbatch", "--parsable", f"--job-name=fu-{stage}", f"--mem={mem}", f"--time={hours}", f"--cpus-per-task={cpus}", "--partition=cpu",
+    args = ["sbatch", "--parsable", f"--job-name=fu-{stage}", f"--mem={mem}", f"--time={hours}", f"--cpus-per-task={cpus}", *(["--partition=rtx4090", "--gres=gpu:rtx_4090:1", "--exclude=cs-4090-09,cs-4090-05"] if gpu else ["--partition=cpu"]),
             f"--output={logdir}/{stage}_%A_%a.out" if array else f"--output={logdir}/{stage}_%j.out"]
     if array:
         args.append(f"--array={array}")
@@ -40,8 +40,16 @@ def main(stage, snap):
         for i, s in enumerate(STATES):
             ids.append(sb(snap, f"s1_{s}", f"{PY} -m atlas.followup_stage1 --state {s} --fold $SLURM_ARRAY_TASK_ID", array="0-4"))
         sb(snap, "s1_aggregate", f"{PY} -m atlas.followup_stage1_aggregate", deps=ids, hours="01:00:00", mem="24G")
+    elif stage == "stage2":
+        ext = {}
+        for s in STATES:
+            ext[s] = sb(snap, f"s2x_{s}", f"{PY} -m atlas.followup_extract --state {s}", gpu=True, hours="01:30:00", mem="48G")
+        fits = []
+        for s in STATES:
+            fits.append(sb(snap, f"s2_{s}", f"{PY} -m atlas.followup_stage2 --state {s} --fold $SLURM_ARRAY_TASK_ID", deps=[ext[s]], hours="05:00:00", mem="32G", array="0-4"))
+        sb(snap, "s2_aggregate", f"{PY} -m atlas.followup_stage2_aggregate", deps=fits, hours="01:00:00", mem="32G")
     else:
-        raise SystemExit("only stage1 is defined until Gate 1 passes")
+        raise SystemExit("stage3 is defined only after Gate 2 passes")
 
 
 if __name__ == "__main__":

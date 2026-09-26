@@ -208,3 +208,18 @@ def test_gate1_stops_on_small_effect_or_capacity_in_either_seed():
     assert gate1({"b10_s1": 1.0, "b10_s2": 1.0}, {"b10_s1": 0.2, "b10_s2": 0.3})["stop"] is False
     assert gate1({"b10_s1": 0.4, "b10_s2": 1.0}, {"b10_s1": 0.1, "b10_s2": 0.1})["stop"] is True       # D small in one seed
     assert gate1({"b10_s1": 1.0, "b10_s2": 1.0}, {"b10_s1": 0.1, "b10_s2": 0.5})["stop"] is True       # capacity in one seed (>= 50%)
+
+
+def test_followup_projectors_and_decision_function():
+    import numpy as np
+    from atlas.followup_stage2_aggregate import decide
+    rng = np.random.default_rng(1); Wh = rng.normal(size=(5, 12)); Wp = np.linalg.pinv(Wh); P = Wp @ Wh
+    u = rng.normal(size=(7, 12)); r = (u @ Wh.T) @ Wp.T; k = u - r
+    assert np.abs(P @ P - P).max() < 1e-10 and np.abs(k @ Wh.T).max() < 1e-10 and np.abs(r + k - u).max() < 1e-12
+    mk = lambda D, fe, dc, dz, lo: {"D": D, "c1e_frac": fe, "d_c1d": dc, "d_zk": dz, "D_minus_c1d_ci": [lo, lo + 1]}
+    assert decide({"s1": mk(1.0, 0.6, 2, 2, 0), "s2": mk(1.0, 0.7, 2, 2, 0)})["outcome"] == "STOP-GATE-2"
+    assert decide({"s1": mk(1.0, 0.6, 2, 2, 0), "s2": mk(1.0, 0.3, 2, 2, 0)})["outcome"] != "STOP-GATE-2"      # both seeds required
+    assert decide({"s1": mk(1.0, 0.2, 1.5, 1.2, -0.5), "s2": mk(1.0, 0.2, 1.1, 1.0, -0.1)})["outcome"] == "HEAD-DISCARD"
+    assert decide({"s1": mk(1.0, 0.2, 1.5, 0.9, -0.5), "s2": mk(1.0, 0.2, 1.1, 1.0, -0.1)})["outcome"] == "INCONCLUSIVE"   # z+k < 75% of c1d in one seed
+    assert decide({"s1": mk(1.0, 0.2, 0.3, 0.0, 0.2), "s2": mk(1.0, 0.2, 0.4, 0.0, 0.1)})["outcome"] == "INTERMEDIATE-SPECIFIC"
+    assert decide({"s1": mk(1.0, 0.2, 0.3, 0.0, 0.2), "s2": mk(1.0, 0.2, 0.4, 0.0, -0.1)})["outcome"] == "INCONCLUSIVE"   # interval includes 0 in one seed
