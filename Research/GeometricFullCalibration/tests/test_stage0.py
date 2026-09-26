@@ -177,3 +177,34 @@ def test_grid_edge_rule_extends_up_to_two_decades_toward_the_edge():
     assert info["extensions_up"] <= 2 and info["extensions_down"] <= 2
     assert set(map(float, info["inner_fit_nll_by_lambda"])) >= {1e-4, 1e-3, 1e-2}
     assert info["selected_lambda"] >= 1e-2 and info["extensions_up"] >= 1
+
+
+def test_anchored_fitter_matches_stage0_when_anchor_is_zero_and_zero_candidate_is_the_base_head():
+    import numpy as np
+    from atlas import followup_anchored as FA, stage0_fit
+    rng = np.random.default_rng(5)
+    n, d, k = 300, 6, 4
+    X = rng.normal(size=(n, d)); y = rng.integers(0, k, n)
+    a = FA.fit_anchored(X, np.zeros((n, k)), y, 1e-2)
+    s = stage0_fit.fit_penalized_multinomial(X, y, 1e-2, k)
+    assert np.abs(a["W"] - s["W"]).max() < 1e-6 and np.abs(a["b"] - s["b"]).max() < 1e-6
+    # anchor generates the labels and the features are pure noise -> f = 0 (the base head) is selected and reproduces the base predictions
+    z = rng.normal(size=(2000, k)) * 2; p = np.exp(z - z.max(1, keepdims=True)); p /= p.sum(1, keepdims=True)
+    yy = np.array([rng.choice(k, p=pi) for pi in p]); noise = rng.normal(size=(2000, 3))
+    fit_in = {"z": z[:1000], "p": noise[:1000]}; val_in = {"z": z[1000:1600], "p": noise[1000:1600]}; full_in = {"z": z[:1600], "p": noise[:1600]}
+    fit = FA.select_and_fit("zp", fit_in, val_in, full_in, yy[:1000], yy[1000:1600], yy[:1600], k=k)
+    assert fit["selected_lambda"] == FA.INF and (FA.predict_logits(fit, {"z": z[1600:], "p": noise[1600:]}).argmax(1) == z[1600:].argmax(1)).all()
+
+
+def test_anchored_tie_rule_prefers_zero_candidate_then_larger_lambda():
+    from atlas import followup_anchored as FA
+    t = [{"lambda": FA.INF, "val_nll": 1.0}, {"lambda": 1e-1, "val_nll": 1.0 - 1e-10}, {"lambda": 1e-2, "val_nll": 2.0}]
+    assert FA.pick(t)["lambda"] == FA.INF
+    assert FA.pick([{"lambda": FA.INF, "val_nll": 2.0}, {"lambda": 1e-1, "val_nll": 1.0}, {"lambda": 1e-2, "val_nll": 1.0}])["lambda"] == 1e-1
+
+
+def test_gate1_stops_on_small_effect_or_capacity_in_either_seed():
+    from atlas.followup_stage1_aggregate import gate1
+    assert gate1({"b10_s1": 1.0, "b10_s2": 1.0}, {"b10_s1": 0.2, "b10_s2": 0.3})["stop"] is False
+    assert gate1({"b10_s1": 0.4, "b10_s2": 1.0}, {"b10_s1": 0.1, "b10_s2": 0.1})["stop"] is True       # D small in one seed
+    assert gate1({"b10_s1": 1.0, "b10_s2": 1.0}, {"b10_s1": 0.1, "b10_s2": 0.5})["stop"] is True       # capacity in one seed (>= 50%)
