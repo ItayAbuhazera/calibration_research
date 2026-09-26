@@ -82,3 +82,20 @@ Source: [[2026-09-24 Regime-Map Pilot]], frozen spec v2 (`docs/regime_map_pilot_
 * Numbers behind the row (8k×1, 12-cell macro, pp, 95% image-bootstrap interval): clean increment of state (a) +3.82 [+3.20, +4.43]; b10 clean increment -0.20 [-0.66, +0.24] (seed 1), -0.74 [-1.19, -0.31] (seed 2); gap(a) +2.77 [+2.43, +3.09]; gap(b10) +1.53 [+1.26, +1.78] (seed 1), +2.04 [+1.79, +2.28] (seed 2); gap(b10) − gap(a) -1.24 [-1.63, -0.86] (seed 1), -0.73 [-1.12, -0.33] (seed 2).
 * **Does not establish:** (i) **Δ_T uses target labels**: it is an oracle ceiling of a restricted linear readout, not a deployable quantity, and the fits use exposed development cells; (ii) **the root cause of the recoverability gap is unresolved**: clean non-identifiability, source-fit regularization, shift of the probe evidence under corruption, readout mismatch and target-adaptation capacity are not separated; (iii) any claim for other backbones, resolutions, probe layers or corruptions; (iv) that clean redundancy is irrelevant in general, only that, as manipulated here, it does not control the gap. Two fine-tuning seeds; state (a) is a single fit; intervals are image-bootstrap only.
 
+## Correction 2026-09-26 — increments are relative to the 8k refit, not to the model's own output (appended; nothing above rewritten)
+The clean increment, Δ_S, Δ_T and gap reported above are all differences between two **8k-row refits** (Z+H minus Z-only, same protocol). The Z-only refit is itself not the model's output: its accuracy differs from the base head by a state-dependent amount. Per-state (refit − base) and (Z+H − base), in pp, **clean / macro-12**, read from `results/regime_map/report/regime_aggregate.json` (`states.<s>.standalone.acc_Z_clean`, `acc_Z_macro12`; `states.<s>.regimes.<S-8k1|T-8k1>.q_Z_clean_acc`, `q_Z_macro12_acc`, `q_ZP_clean_acc`, `q_ZP_macro12_acc`):
+
+| state | base Z (clean / macro-12, %) | S-8k×1 Z-only refit − base | S-8k×1 Z+H − base | T-8k×1 Z-only refit − base | T-8k×1 Z+H − base |
+|---|---|---|---|---|---|
+| a | 72.35 / 48.76 | -4.22 / -3.38 | -0.40 / -1.36 | -7.47 / +0.62 | -4.08 / +5.41 |
+| b1_s1 | 65.36 / 39.56 | +8.18 / +5.40 | +9.83 / +6.86 | +5.85 / +11.88 | +6.66 / +15.07 |
+| b3_s1 | 77.60 / 46.99 | +1.56 / +1.29 | +1.40 / +1.46 | -0.79 / +8.34 | -1.26 / +10.15 |
+| b10_s1 | 84.25 / 53.68 | -1.29 / -1.15 | -1.49 / -1.86 | -3.29 / +5.15 | -4.90 / +5.96 |
+| b1_s2 | 68.97 / 43.47 | +5.03 / +2.79 | +6.08 / +3.03 | +2.91 / +9.58 | +3.30 / +12.03 |
+| b3_s2 | 74.92 / 45.04 | +3.67 / +3.15 | +3.46 / +2.64 | +1.35 / +10.20 | +0.84 / +12.23 |
+| b10_s2 | 84.58 / 53.30 | -0.96 / -1.16 | -1.70 / -2.18 | -3.38 / +5.84 | -4.98 / +6.86 |
+
+* **The row-4 verdict is unchanged** (it is a statement about the frozen rule applied to the reported differences).
+* **The statement that the frozen backbone has "+3.8 pp clean complementary information" is not supported relative to the base output**: the +3.82 pp is Z+H minus the S-8k×1 Z-only refit, and that refit is below the base head on clean (see the table); relative to the base output the source-fitted Z+H is below it on clean for state (a).
+* Nothing else in this note is reinterpreted by this correction.
+

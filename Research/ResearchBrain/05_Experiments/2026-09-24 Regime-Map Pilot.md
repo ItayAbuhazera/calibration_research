@@ -139,3 +139,20 @@ None. The grid-edge rule was never triggered.
 * **Corruption families outside {gaussian_noise, defocus_blur, fog, jpeg_compression}: NOT exposed by Phase 2.** Verified from code and the array: the Phase 2 and Stage 0 fit code contain no path to the raw CIFAR-100-C files, and `test_sets_full.npy` has shape (130000, 3, 32, 32) = 13 × 10,000, i.e. only those conditions exist in the array read. The 11 other families remain as recorded in the ledger. Checkpoints 1/3/5 were not accessed.
 * Status: development reuse of the exposed cells and images on a new model family; not confirmation.
 
+## Correction 2026-09-26 — increments are relative to the 8k refit, not to the model's own output (appended; nothing above rewritten)
+The clean increment, Δ_S, Δ_T and gap reported above are all differences between two **8k-row refits** (Z+H minus Z-only, same protocol). The Z-only refit is itself not the model's output: its accuracy differs from the base head by a state-dependent amount. Per-state (refit − base) and (Z+H − base), in pp, **clean / macro-12**, read from `results/regime_map/report/regime_aggregate.json` (`states.<s>.standalone.acc_Z_clean`, `acc_Z_macro12`; `states.<s>.regimes.<S-8k1|T-8k1>.q_Z_clean_acc`, `q_Z_macro12_acc`, `q_ZP_clean_acc`, `q_ZP_macro12_acc`):
+
+| state | base Z (clean / macro-12, %) | S-8k×1 Z-only refit − base | S-8k×1 Z+H − base | T-8k×1 Z-only refit − base | T-8k×1 Z+H − base |
+|---|---|---|---|---|---|
+| a | 72.35 / 48.76 | -4.22 / -3.38 | -0.40 / -1.36 | -7.47 / +0.62 | -4.08 / +5.41 |
+| b1_s1 | 65.36 / 39.56 | +8.18 / +5.40 | +9.83 / +6.86 | +5.85 / +11.88 | +6.66 / +15.07 |
+| b3_s1 | 77.60 / 46.99 | +1.56 / +1.29 | +1.40 / +1.46 | -0.79 / +8.34 | -1.26 / +10.15 |
+| b10_s1 | 84.25 / 53.68 | -1.29 / -1.15 | -1.49 / -1.86 | -3.29 / +5.15 | -4.90 / +5.96 |
+| b1_s2 | 68.97 / 43.47 | +5.03 / +2.79 | +6.08 / +3.03 | +2.91 / +9.58 | +3.30 / +12.03 |
+| b3_s2 | 74.92 / 45.04 | +3.67 / +3.15 | +3.46 / +2.64 | +1.35 / +10.20 | +0.84 / +12.23 |
+| b10_s2 | 84.58 / 53.30 | -0.96 / -1.16 | -1.70 / -2.18 | -3.38 / +5.84 | -4.98 / +6.86 |
+
+* **The row-4 verdict is unchanged** (it is a statement about the frozen rule applied to the reported differences).
+* **The statement that the frozen backbone has "+3.8 pp clean complementary information" is not supported relative to the base output**: the +3.82 pp is Z+H minus the S-8k×1 Z-only refit, and that refit is below the base head on clean (see the table); relative to the base output the source-fitted Z+H is below it on clean for state (a).
+* Nothing else in this note is reinterpreted by this correction.
+
