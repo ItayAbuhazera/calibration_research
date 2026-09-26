@@ -51,3 +51,6 @@ Provenance: Stage 1 snapshot `followup_s1_ea2dfacff7fe` (git `7ab8afc`), jobs 21
 * INTERMEDIATE-SPECIFIC: not met (D − Δ_T(C1d) intervals [-0.05671967726878704, 0.32258535040341396] and [-0.1542079249183171, 0.2350574281522971] include 0).
 * **Outcome (`decision` in `stage2_anchored.json`): INCONCLUSIVE — stop.**
 * Stage 3 (label budget) has not been run; see the report to the researcher.
+
+## Stage 3 — not run (researcher's decision, 2026-09-27)
+The INCONCLUSIVE stop of the pre-declared decision table covers Stage 3. Stage 3 (label budget, amendment §5) was meant to size a phenomenon for continuation; with the decision at stop it cannot change anything, so it was not run. No further runs on this line.
