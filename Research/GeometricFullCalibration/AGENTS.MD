@@ -1,5 +1,10 @@
 # AGENTS
 
+For any research design, experiment, interpretation, workflow, or exposure
+question, read the canonical workflow first:
+`docs/research_workflow.md`. It supplements these code-maintenance rules and
+does not authorize changes beyond the active task.
+
 - Prefer additive changes over invasive refactors.
 - Preserve backward compatibility for the legacy paper workflow.
 - Do new implementation work in the unified benchmark path unless explicitly asked otherwise.

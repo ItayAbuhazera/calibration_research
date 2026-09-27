@@ -99,3 +99,10 @@ The clean increment, Δ_S, Δ_T and gap reported above are all differences betwe
 * **The statement that the frozen backbone has "+3.8 pp clean complementary information" is not supported relative to the base output**: the +3.82 pp is Z+H minus the S-8k×1 Z-only refit, and that refit is below the base head on clean (see the table); relative to the base output the source-fitted Z+H is below it on clean for state (a).
 * Nothing else in this note is reinterpreted by this correction.
 
+
+## Update 2026-09-27 (regime-map follow-up closed; appended, nothing above rewritten)
+Source: [[2026-09-26 Regime-Map Follow-up Capacity and Ceiling Controls]]; artifact `results/regime_map_followup/report/stage2_anchored.json` (`decision`).
+* **Regime-map line: closed. The pre-declared rule (frozen spec v1 + amendment 1) returned INCONCLUSIVE — stop**, with both b10 seeds: Gate 1 and Gate 2 not triggered, HEAD-DISCARD not met, INTERMEDIATE-SPECIFIC not met (D − Δ_T(C1d) intervals include 0). Stage 3 not run; no further runs on this line.
+* **Correction of wording:** earlier text describing the frozen state (a) as a "clean-complementary" state is not supported relative to the base output (see the Regime-Map Pilot card, Correction 2026-09-26).
+* **Does not establish:** every Δ_T is an oracle target-label diagnostic; absence of information is not shown; nothing about layer3 evidence being redundant or specific.
+* Descriptive observations (not decision-bearing; two noticed after the decision; no follow-up authorized) are in the follow-up card.

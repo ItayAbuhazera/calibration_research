@@ -20,6 +20,12 @@ alters an experiment.
 
 ## Recommended workflow
 
+For the active full-vector/decision/shift project, the operational workflow
+and card requirements are canonical in
+[`GeometricFullCalibration/docs/research_workflow.md`](../GeometricFullCalibration/docs/research_workflow.md).
+Use [[Representation Correction Exposure Ledger]] to determine development
+and confirmation status; this vault README remains the taxonomy/evidence map.
+
 - Capture raw material in `00_Inbox`.
 - Convert meaningful papers into concise notes in `01_Papers`.
 - Extract reusable empirical facts into `02_Observations`.
@@ -58,4 +64,3 @@ Paper notes are deliberately selective. Add a paper when it is:
 - or a bridge from uncertainty estimation to operational decisions.
 
 Do not add papers merely because they appeared in a related-work section.
-

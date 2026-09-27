@@ -3,6 +3,11 @@
 Full reference: `RESEARCH_WORKSPACE.md` (read it before any non-trivial task
 here — this file is only the fast-start summary).
 
+For research work in `GeometricFullCalibration/`, also read its canonical
+workflow: `GeometricFullCalibration/docs/research_workflow.md`. It is the
+single authority for cumulative experiment cards, evidence, exposure,
+confirmation, review, and execution guidance.
+
 ## Canonical repos — do not confuse with their siblings
 
 - `geometric/GeometricCalibration/` — Geometric Separation paper (JMLR 2023).

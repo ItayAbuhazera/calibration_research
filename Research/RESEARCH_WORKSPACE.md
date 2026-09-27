@@ -187,6 +187,10 @@ initiative:
 
 ## Quick pointers
 
+- Cumulative workflow for active full-vector/decision/shift research:
+  `GeometricFullCalibration/docs/research_workflow.md` (the canonical
+  project workflow; its linked exposure ledger records development and
+  confirmation status).
 - Reading map / paper triage: `ResearchBrain/01_Papers/00 Paper Map - Geometric Uncertainty to Actionable Confidence.md`
 - Current priorities: `ResearchBrain/00_Inbox/Research Dashboard.md`
 - Cross-project lineage and the recurring open questions: `ResearchBrain/10_Projects/Research Lineage.md`
