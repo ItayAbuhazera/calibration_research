@@ -8,13 +8,13 @@ the full state. Watchers are convenience only.
 
 | Field | Value |
 |---|---|
-| Current stage | D — G1-DP arrays submitted (jobs 21726070–21726079); see HANDOFF at end |
+| Current stage | D — G1-DP running under Amendment 1 (snapshot g1dp_a1_5f363f77476c; jobs 21726203–21726210) |
 | Git HEAD at start | `ec4bf50` (N1a results) |
 | Push status | 4 N1a commits (3b2ab7b, 3d5ac7b, 5cefe65, ec4bf50) **pushed** to origin/main (fast-forward dfd137b..ec4bf50) |
-| Frozen specs | decoder_panel_v1_spec.md (c27a1df4…, 0dc2041); g1_dp_spec.md (0cbfb62e…, 096ed35) |
+| Frozen specs | decoder_panel_v1_spec.md (c27a1df4…, 0dc2041); g1_dp_spec.md (0cbfb62e…, 096ed35); g1_dp_spec_amendment_1.md (6e3930cb…, d399af3) |
 | Implementation commit | b58db89 |
-| Snapshot | snapshots/g1dp_531dd80dcfa0 |
-| Jobs running | G1-DP 21726070–21726079 + engineering audits |
+| Snapshot | snapshots/g1dp_a1_5f363f77476c (supersedes g1dp_531dd80dcfa0) |
+| Jobs running | G1-DP 21726203–21726210 + engineering audits |
 | Next action | see HANDOFF section at end |
 
 ## 1. Git verification log (Stage 0)
@@ -180,3 +180,20 @@ cached float16 probe logits):
 All four hold → proceeding with a documented pre-outcome amendment.
 Original frozen G1-DP spec: `docs/g1_dp_spec.md`, sha256 `0cbfb62e70125a8bff22f929ab62466b41de5a4d5d9ed8af6454cf859e4da825` (unchanged).
 Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f1d821c2ac972d428fbf46f13bfe641af4f6852b70b7ded` (original spec hash unchanged).
+
+## Stage C/D resubmission under Amendment 1 (2026-09-28)
+
+- Amendment commit `d399af3`; new snapshot **`snapshots/g1dp_a1_5f363f77476c`** (git_head d399af3, clean tracked diff). Previous snapshot `snapshots/g1dp_531dd80dcfa0`
+  is superseded (its extraction gate is the unamended rule); its seed-2/seed-4 extraction jobs (21726070/71) are superseded.
+- Step 1 (validation only): extract_s2, extract_s4 from the new snapshot (re-extracts H_3.22 and re-evaluates the amended gate).
+- Step 2 (only if BOTH pass): downstream chain UNCHANGED in design/resources: `atlas.dp_submit` g1dp chain minus the extraction step
+  (bundle array 0-9 → six family arrays → aggregate), all from `snapshots/g1dp_a1_5f363f77476c`.
+  Submitted: extract_a1_s2 21726199, extract_a1_s4 21726200 (rtx4090, no deps).
+- Step 1 result: extract_a1_s2 21726199 COMPLETED, extract_a1_s4 21726200 COMPLETED — **amended gate PASSED in both checkpoints**
+  (tie-aware agreement 1.000 all cells; plain argmax min 0.999 / 0.9988 reported; max |ΔP| 0.0078 / 0.0152 ≤ 0.05; max |Δz| 0).
+  `results/g1dp/h322/seed{2,4}/consistency.json` (field `amendment: g1_dp_spec_amendment_1`). Raw tier valid.
+- Step 2 submitted 2026-09-28 (from `snapshots/g1dp_a1_5f363f77476c`): bundle 21726203 (array 0-9, no deps — extraction already
+  passed); fit_linear 21726204, fit_poly2 21726205, fit_rff 21726206, fit_lgbm 21726207 (110 tasks each, %20), fit_mlp 21726208,
+  fit_knn 21726209 (10 tasks each, %10) — each afterok 21726203; aggregate 21726210 (afterok all six).
+  Recover: `sacct -j 21726203,21726204,21726205,21726206,21726207,21726208,21726209,21726210 -o JobID,JobName%25,State,Elapsed`.
+  The HANDOFF steps above apply with these IDs and this snapshot (resubmit failed indices from `snapshots/g1dp_a1_5f363f77476c`).
