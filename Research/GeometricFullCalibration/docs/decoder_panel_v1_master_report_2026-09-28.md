@@ -203,3 +203,4 @@ Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f
   (study JSON only): all refits converged, all selected λ interior (A/B/H 1e-2, Hs 1e-1, Cs 1e0; no grid edge), HPO 2–5 min per arm.
   Disclosure: that check displayed the inner-validation NLL of the selected and anchor-only candidates for this one fold; no
   test-set accuracy or contrast was computed, and nothing is decided from partial results (spec §5: aggregation only after all arrays).
+- Monitoring 2026-09-29 ~01:15: arm-units complete — linear 93/110, poly2 22/110, rff 26/110, mlp 110/110 (10/10 tasks), knn 110/110 (10/10 tasks), lgbm 0/110 (array 21726207 still pending on Priority); aggregate 21726210 pending. No Traceback/Error/OOM/TIMEOUT in any fit log; no resubmission needed.
