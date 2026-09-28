@@ -32,3 +32,78 @@ the full state. Watchers are convenience only.
 ## 3. Journal
 
 - Stage A started 2026-09-28.
+
+### Stage A findings (2026-09-28)
+
+- Cluster (live `sinfo`, 2026-09-28): partitions `cpu` (77 nodes; cpu128 nodes with ~100+ idle cores each; several cpu256 nodes in
+  maint), `rtx4090` (31 nodes, 3 GPUs each; cs-4090-04/05 invalid, cs-4090-03/07 maint), 7-day `cpu` limit. Account `cliron`,
+  QoS `normal`, no per-user TRES limit shown by `sacctmgr`. One unrelated interactive user job (`pycharm_`, 21725577) running.
+- **No `$SLURM_TMPDIR` on this cluster.** Node-local `/tmp` (~190 GB free, /dev/sda4) is used as scratch: every task uses
+  `/tmp/dp_<jobid>_<taskid>` and removes it on exit; only results/logs are written to the persistent tree.
+- Dependencies in `/home/itayab/.conda/envs/geo_cuda12`: scikit-learn 1.6.1, lightgbm 4.6.0, optuna 4.2.1, torch 2.3.1+cu121,
+  numpy 1.26.4, scipy 1.15.2 — all six families implementable without new installs.
+- G1 fitting granularity: see discrepancy #1 (pooled over the 12 cells; one fit per checkpoint x regime x arm x fold).
+- Raw H_3.22: P_3.22 = `raw__probe_logits[:, 8, :]` = saved layer-pilot probe (`results/layer_pilot/checkpoint_seed{s}/probe_weights.pt`,
+  `((x - mean)/std) @ W + b`, pre-temperature) applied to x = L2-normalized global-average-pooled `layer3.22` output (1024-d), strict FP32,
+  corrected_v2 protocol (`Experiments/layer_selection_pilot.py` FeatureTap). Raw features were NOT cached, but are **exactly reproducible**
+  with an exact label-free consistency gate (reconstruct cached P_3.22 from re-extracted features with the saved probe). Raw tier planned.
+- G1 anchored-linear fit cost (from G1 fits): A/B ~1 min; C/D/E/F ~25–40 min per (arm, fold) on 4 cores (lambda path + refit).
+
+### Stage B — engineering benchmarks (synthetic teacher targets, NO scientific labels)
+
+Code: `atlas/decoder_panel.py` (panel implementation, draft), `atlas/dp_engineering.py`, `atlas/dp_submit.py` (uncommitted draft at
+submission time; engineering only, run from the live tree, not a snapshot). Units: G1-DP seed 2 / fold 0 rows (arms A 100-d,
+C 2148-d, I-standin 3172-d), N1a-DP base 2 / fog held out / fold 0 (72,000 x 206 training rows, 3 inner env splits).
+Intended command: `python -m atlas.dp_submit engineering` (16 jobs, `cpu` 8 cores / 32G except one rtx4090 MLP job).
+Outputs: `results/decoder_panel/engineering/*.json`; ledger `results/decoder_panel/ledger.json`; logs `results/decoder_panel/logs/`.
+Submitted 2026-09-28 (no dependencies): eng_g1_linear 21725636, eng_n1a_linear 21725637, eng_g1_poly2 21725638, eng_n1a_poly2 21725639,
+eng_g1_knn 21725640, eng_n1a_knn 21725641, eng_g1_rff 21725642, eng_n1a_rff 21725643, eng_g1_lgbm_C50 21725644, eng_g1_lgbm_AI 21725645,
+eng_g1_mlp_cpu 21725646, eng_g1_mlp_gpu 21725647 (rtx4090), eng_n1a_lgbm 21725648, eng_n1a_mlp 21725649.
+Recover state: `sacct -j 21725636,21725637,21725638,21725639,21725640,21725641,21725642,21725643,21725644,21725645,21725646,21725647,21725648,21725649`.
+
+Cancelled 2026-09-28 (never started; pending on Priority; 1–3-day limits blocked backfill): all engineering jobs except 21725647 (GPU MLP,
+COMPLETED). Resubmitted with shorter limits (6–16 h) and per-trial progress logging (engineering change only):
+  eng_g1_linear 21725689
+  eng_n1a_linear 21725690
+  eng_g1_poly2 21725691
+  eng_n1a_poly2 21725692
+  eng_g1_knn 21725693
+  eng_n1a_knn 21725694
+  eng_g1_rff 21725695
+  eng_n1a_rff 21725696
+  eng_g1_lgbm_C50 21725697
+  eng_g1_lgbm_AI 21725698
+  eng_g1_mlp_cpu 21725699
+  eng_n1a_lgbm 21725700
+  eng_n1a_mlp 21725701
+
+**Engineering finding (2026-09-28, synthetic targets):** anchored LightGBM (init_score = z) produced exploding first-round leaves
+(max |leaf| ≈ 8,645; inner NLL 229 vs 7.1 for the anchor alone) because saturated softmax anchors give near-zero hessians and Newton
+leaf values blow up. Fix frozen into the family definition before any scientific run: `max_delta_step = 2.0` (with the cap: best NLL 2.21;
+cap 1.0: 2.32). Cancelled the uncapped LightGBM audits 21725697, 21725698, 21725700; resubmitted with the cap:
+eng_g1_lgbm_C50_mds2 21725772, eng_g1_lgbm_AI_mds2 21725773, eng_n1a_lgbm_mds2 21725774.
+Also found/fixed (engineering): `stage0_fit` sets torch's default dtype to float64 at import → MLP now pinned to float32;
+`fit_decoder` default `n_trials` was bound at definition time → now read at call time.
+Replacement kNN audits (NumPy kNN): eng_g1_knn_np 21725842, eng_n1a_knn_np 21725843 (COMPLETED). Test runs: tests_without_dp 21725891,
+tests_with_dp 21725892 (COMPLETED).
+
+### Stage B result (2026-09-28)
+
+- Budget: **N_TRIALS = 50** (rule: raise if any audited study improved > 0.25 % from 20 → 30; G1-scale MLP improved 0.37 % CPU / 1.47 % GPU).
+- MLP on **CPU** (GPU 2–7× faster per study but ≤ 19 min on CPU with far more free slots).
+- Engineering defects fixed before freezing: LightGBM leaf explosion under saturated anchors (`max_delta_step = 2.0`), float64 global
+  default dtype, `n_trials` default binding, sklearn kNN out-of-range indices (replaced by exact NumPy kNN).
+- Resource estimate: G1-DP ≈ 5,600 core-h + < 0.5 GPU-h, elapsed ≈ 12–20 h; N1a-DP ≈ 900 core-h. Judged acceptable (not unexpectedly
+  large for 660 + 240 nested HPO studies); nothing scientific dropped. `docs/decoder_panel_v1_resource_plan.md`.
+- **Frozen panel spec:** `docs/decoder_panel_v1_spec.md`, sha256 `c27a1df454889bb706e9ded852275683f7be2d3316a5d05603ca0b3246c5d50d`, commit `0dc2041`.
+  Resource plan commit `7c4b463`.
+
+### Tests (requirement 20)
+
+- `tests/test_decoder_panel.py`: 32 passed (items 1–19 + rules + end-to-end task path).
+- Full suite: 526 passed, 26 failed, 5 errors WITH the new module; **identical 26 failed / 5 errors WITHOUT it** (495 passed), and all 31
+  of those pass when run in isolation → **pre-existing, order-dependent failures unrelated to this work** (test_glad_pi_shapes,
+  test_integration_smoke, test_kcal ["mixed dtype" — consistent with `stage0_fit`'s global float64 default leaking across test modules],
+  test_layer_selection_pilot, test_pts_argmax_invariance, test_recoverability_export, test_reliability_experiment,
+  test_scalar_confidence_semantics, test_studyAB_benchmark_validation errors). Not fixed (unrelated research code).
+  Logs: `results/decoder_panel/engineering/full_suite_with_dp.txt`, `full_suite_without_dp.txt`, `preexisting_failures_isolated.txt`.
