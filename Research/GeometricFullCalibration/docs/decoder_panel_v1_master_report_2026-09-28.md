@@ -8,14 +8,14 @@ the full state. Watchers are convenience only.
 
 | Field | Value |
 |---|---|
-| Current stage | A — repository / dependency / cluster inspection |
+| Current stage | D — G1-DP arrays submitted (jobs 21726070–21726079); see HANDOFF at end |
 | Git HEAD at start | `ec4bf50` (N1a results) |
 | Push status | 4 N1a commits (3b2ab7b, 3d5ac7b, 5cefe65, ec4bf50) **pushed** to origin/main (fast-forward dfd137b..ec4bf50) |
-| Frozen specs | none yet |
-| Implementation commit | — |
-| Snapshot | — |
-| Jobs running | none |
-| Next action | finish inspection of G1/N1a code, artifacts, cluster; draft Decoder Panel v1 spec |
+| Frozen specs | decoder_panel_v1_spec.md (c27a1df4…, 0dc2041); g1_dp_spec.md (0cbfb62e…, 096ed35) |
+| Implementation commit | b58db89 |
+| Snapshot | snapshots/g1dp_531dd80dcfa0 |
+| Jobs running | G1-DP 21726070–21726079 + engineering audits |
+| Next action | see HANDOFF section at end |
 
 ## 1. Git verification log (Stage 0)
 
@@ -107,3 +107,36 @@ tests_with_dp 21725892 (COMPLETED).
   test_layer_selection_pilot, test_pts_argmax_invariance, test_recoverability_export, test_reliability_experiment,
   test_scalar_confidence_semantics, test_studyAB_benchmark_validation errors). Not fixed (unrelated research code).
   Logs: `results/decoder_panel/engineering/full_suite_with_dp.txt`, `full_suite_without_dp.txt`, `preexisting_failures_isolated.txt`.
+
+## Stage D — G1-DP submission (2026-09-28)
+
+§63 constraint re-check before launch: N1a commits pushed (ec4bf50) ✓; G1 remains closed (Outcome C untouched) ✓; N1a remains
+INCONCLUSIVE ✓; master report exists ✓; exactly six families ✓; Optuna only for lgbm/mlp, grids elsewhere ✓; identical HPO opportunity
+across arms (tested) ✓; G1 fitting unit preserved (pooled; discrepancy #1) ✓; N1a-DP not yet frozen/run ✓; no N1b ✓; parallelism across
+units, Optuna n_jobs = 1 ✓; node-local /tmp staging, results persistent ✓; job IDs recorded below ✓.
+
+- Frozen G1-DP spec: `docs/g1_dp_spec.md`, sha256 `0cbfb62e70125a8bff22f929ab62466b41de5a4d5d9ed8af6454cf859e4da825`, commit `096ed35`.
+- Implementation commit `b58db89`; **snapshot `snapshots/g1dp_531dd80dcfa0`** (SNAPSHOT.json git_head 096ed35, clean tracked diff).
+- Command (run from repo root): `python -m atlas.dp_submit g1dp snapshots/g1dp_531dd80dcfa0`
+  → extract_s2, extract_s4 (rtx4090) → bundle array 0-9 (afterok) → fit_<family> arrays (afterok bundle; mapping manifests
+  `results/g1dp/array_manifest_<family>.json`; linear/poly2/rff/lgbm 110 tasks %20, mlp/knn 10 tasks %10) → aggregate (afterok all fits).
+- Outputs: `results/g1dp/h322/`, `results/g1dp/bundles/`, `results/g1dp/fits/<family>/seed<s>/fold<k>/<arm>.{npz,study.json,done.json}`,
+  `results/g1dp/report/`; logs `results/g1dp/logs/`; ledger `results/g1dp/ledger.json`.
+
+Submitted 2026-09-28T22:50: extract_s2 21726070, extract_s4 21726071 (no deps); bundle 21726072 (afterok 21726070:21726071);
+fit_linear 21726073, fit_poly2 21726074, fit_rff 21726075, fit_lgbm 21726076, fit_mlp 21726077, fit_knn 21726078 (each afterok 21726072);
+aggregate 21726079 (afterok all six fit arrays).
+Recover: `sacct -j 21726070,21726071,21726072,21726073,21726074,21726075,21726076,21726077,21726078,21726079 -o JobID,JobName%25,State,Elapsed`.
+
+## HANDOFF / exact next actions (for a new session)
+
+1. Monitor with sacct (IDs above). If extraction fails its gate (exit 2): the raw tier is dropped per spec §2 — but then the bundle
+   stage (afterok) will not start; engineering decision needed: rebuild bundles without h3 is NOT implemented → STOP and report.
+2. Failed fit indices (time/memory/node): resubmit only those indices from the SAME snapshot (`sbatch --array=<idx>` of the same
+   command via `atlas.dp_submit.sb`); completed units are skipped automatically (checksum-validated `.done.json`). Then run
+   `python -m atlas.g1dp_aggregate` from the snapshot (it refuses incomplete arrays).
+3. After aggregation: write `docs/g1_decoder_panel_audit_2026-09-28.md` (structure: prompt §45), update this report, experiment card.
+4. Only then: fill `N1ADP_RES` in `atlas/dp_submit.py` (resource plan §5), freeze `docs/n1a_dp_spec.md` (draft present, not frozen),
+   commit + sidecar, snapshot `n1adp`, submit `python -m atlas.dp_submit n1adp <snapshot>`.
+5. Still running (engineering only, descriptive): eng_g1_linear 21725689, eng_g1_poly2 21725691, eng_n1a_poly2 21725692,
+   eng_g1_rff 21725695, eng_g1_lgbm_C50_mds2 21725772, eng_g1_lgbm_AI_mds2 21725773 — append their timings/curves here when done.
