@@ -30,3 +30,11 @@ Authors: Arnas Uselis and Seong Joon Oh. arXiv:2504.05461; ICLR 2025 proceedings
 
 ## What it does NOT establish
 Not verified against the paper text; no claim about CIFAR-100-C, our ResNet-101 checkpoints, or our recipe follows from it.
+
+## Update 2026-09-28 (appended; arXiv HTML read via a summarizing fetch, not the PDF)
+* CIFAR-100-C **is** used. Base model: a **CIFAR-100-trained ResNet-18** (Sonthalia et al. 2024), frozen; highest severity only; each of 19 noise types treated as its own OOD set.
+* Zero-shot (probes trained on ID data, layer/hyperparameters selected on OOD validation): "+3%p for ResNet-18 and +1%p for the ViT" on CIFAR-100C.
+* Few-shot (probes and DFR baseline trained on the same K OOD samples per class): (+16.8, +6.3, +1.6, +6.3) pp on (CMNIST, CIFAR-10, CIFAR-100C, MultiCelebA) for ResNets; ViT −0.2 on CIFAR-100C.
+* Replacement only (no concatenation with logits or penultimate features). The few-shot result *implies* (population level, OOD-selected layer) a positive joint-readout increment beyond H_L; it does not measure one.
+* Our approximately matched zero-shot comparison disagrees in sign: best non-final clean probe with per-cell target-selected layer at severity 5 is −0.13 to −1.06 pp below the head (`GeometricFullCalibration/results/stage0/report/stage0b_layer_probe_eval.json`). Unmatched factors: depth (18 vs 101), probe recipe (ℓ1/Adam vs ridge/L-BFGS), selection granularity.
+* G1 ([[2026-09-28 G1 Conditional Accessibility Gatekeeper]]) found no depth-specific increment beyond H_L in our ResNet-101 at the tested budget.

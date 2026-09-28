@@ -131,3 +131,17 @@ Source: [[2026-09-22 Stage 0 Probe-Logit Increment Study]] (frozen spec `docs/st
 **Provenance caveats carried by this update.** Spec §§0–6 were frozen from an execution prompt before the memo (a Claude Doc) was found; derived-gap intervals were added after the first aggregate output; commit `b55dd90` reached `origin/main` through an unauthorized agent-spawned push; one seed-4 S-2.5k×1 fold file was rewritten by that agent's rerun (unverified). Details in the card's deviations list.
 
 Links: [[Theory Plan - Decision Utility, Layers, Compression and Risk Control]] (memo T1/T2 appended), [[Research Lineage]], [[Research Dashboard]].
+
+## G1 update — 2026-09-28 (appended; nothing above rewritten)
+
+Source: [[2026-09-28 G1 Conditional Accessibility Gatekeeper]] (frozen spec `GeometricFullCalibration/docs/g1_conditional_access_spec.md`, sha256 `b860895f…49bd77`; artifacts `GeometricFullCalibration/results/g1/report/g1_aggregate.json`, `g1_table.md`). ResNet-101 checkpoints 2 and 4, 12 exposed development cells, anchored readouts fitted with **target labels** (oracle diagnostic), T-8k×1, 12-cell macro accuracy.
+
+* **Stage 0 revealed accessible compact internal evidence. G1 did not support a depth-specific interpretation and exposed substantial capacity / parameterization sensitivity in full-rank H_L readouts.**
+* The Stage-0 increment is best described as **compact-summary accessibility**: (Z, P_3.22) − Z = +1.88 / +1.80 pp, whereas a full-rank penultimate readout (Z, H_L) − Z = +0.27 / +0.39 pp recovers only a small fraction of it at 8k labels.
+* Joint ridge fitting of H_L and P destroys much of the compact-probe benefit: (Z, H_L, P) − (Z, P) = −1.38 / −1.16 pp.
+* The primary conditional increment Δ_cond = (Z, H_L, P) − (Z, H_L) = +0.24 / +0.24 pp is **below the observed same-information parameterization band** (Z, P_ker H_L) − (Z, H_L) = +0.72 / +0.50 pp, and below what Z_other adds after H_L (+0.51 / +0.36 pp).
+* **No depth-specific claim survives.** The label-budget comparison (2.5k vs 8k) did **not** show the simple "more labels make H_L catch up" pattern, so the result is not summarized as sample efficiency alone.
+* **G1 does not establish that the relevant information is absent from H_L**, nor anything about other readout families, budgets, models, or reserved families.
+* **The Stage-0 branch is stopped under frozen Outcome C** (capacity / estimation confound). No further budgets, ridge grids, nonlinear H_L recovery, layer sweeps, extra checkpoints or PCA on this branch.
+
+Related: [[H-ACCESS-01 Mid-depth evidence adds target-fitted value beyond (Z, H_L) in end-to-end ResNet-101 under corruption]], [[A full-rank penultimate target readout does not reproduce the compact layer3 probe increment in ResNet-101]], [[Equivalent feature spans can differ materially under finite-sample regularized readouts]]. Next (proposed, not an Idea note): an action-ambiguity audit (N1a) — see [[2026-W40]].
