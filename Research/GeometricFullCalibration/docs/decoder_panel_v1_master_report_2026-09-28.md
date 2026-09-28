@@ -162,3 +162,21 @@ Recover: `sacct -j 21726070,21726071,21726072,21726073,21726074,21726075,2172607
 Measured on G1 arm C (2,148-d; 8 cores): linear 38 min, poly2 48 min (below the ~2 h extrapolation in the resource plan), rff 27 min.
 Arm I and the N1a poly2 audit were still running (jobs 21725689/91/92/95, 21725772/73). The 16 h poly2 limit and 8 h linear/rff limits
 remain conservative. The G1-DP arrays were not started (see STOP above); nothing is scheduled to run until the gate decision.
+
+## Researcher decision (2026-09-28): option B with a tie-aware rule — PRE-AMENDMENT RECORD
+
+Decision: amend the raw-H_3.22 gate's argmax sub-criterion to a tie-aware top-class rule (not a denominator exclusion): with
+T(x) = {c : P_cache_c = max_j P_cache_j} on the stored float16 probe outputs, a row is top-class-consistent iff argmax(P_rec) ∈ T(x).
+Option A only if any disagreement remained unexplained.
+
+Pre-amendment verification (label-free; `results/g1dp/h322/tie_aware_audit.json`; reads only re-extracted H_3.22, the saved probe and
+cached float16 probe logits):
+1. The 23 disagreements in the two failing seed-4 cells (gaussian_noise_s5: 12, defocus_blur_s5: 11) all occur on exact stored-float16
+   top ties. Over ALL 13 conditions: seed 2 has 82 plain-argmax disagreements, seed 4 has 75 — every one on a tied row.
+2. Disagreements on non-tied rows: **0** (both seeds, all conditions). Tie-aware agreement = 1.000 in every cell.
+3. Original numeric thresholds still pass: max |P_rec − P_cache| = 0.0078 (seed 2) / 0.0152 (seed 4) ≤ 0.05; max |Δz| = 0 ≤ 1e-2.
+4. No labels and no G1-DP outcome have been inspected: no bundle was built and no fit ran (jobs 21726072–79 were cancelled
+   by Slurm before starting); the extraction and audit read no labels.
+All four hold → proceeding with a documented pre-outcome amendment.
+Original frozen G1-DP spec: `docs/g1_dp_spec.md`, sha256 `0cbfb62e70125a8bff22f929ab62466b41de5a4d5d9ed8af6454cf859e4da825` (unchanged).
+Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f1d821c2ac972d428fbf46f13bfe641af4f6852b70b7ded` (original spec hash unchanged).

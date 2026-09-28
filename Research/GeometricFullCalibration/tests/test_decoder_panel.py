@@ -297,3 +297,10 @@ def test_g1dp_task_end_to_end_with_fake_bundle(tmp_path, monkeypatch):
 
 def _needed_ok(need):
     return {"train_p~inner", "train_p~full", "test_p~test", "train_h", "test_h"} <= set(need) and "train_h3" not in need
+
+
+def test_g1dp_tie_aware_gate():
+    from atlas.g1dp_extract import tie_aware_agreement
+    pc = np.array([[1.0, 3.0, 3.0], [5.0, 1.0, 0.0], [0.0, 2.0, 1.0]], np.float16)
+    pr = np.array([[1.0, 3.0, 3.001], [5.0, 1.0, 0.0], [0.0, 1.0, 2.0]])   # row 0: tie -> consistent; row 2: non-tied disagreement
+    assert tie_aware_agreement(pr, pc) == pytest.approx(2 / 3)
