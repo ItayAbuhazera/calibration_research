@@ -197,3 +197,4 @@ Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f
   fit_knn 21726209 (10 tasks each, %10) — each afterok 21726203; aggregate 21726210 (afterok all six).
   Recover: `sacct -j 21726203,21726204,21726205,21726206,21726207,21726208,21726209,21726210 -o JobID,JobName%25,State,Elapsed`.
   The HANDOFF steps above apply with these IDs and this snapshot (resubmit failed indices from `snapshots/g1dp_a1_5f363f77476c`).
+- Bundles 21726203_[0-9] all COMPLETED (0.75–38 min; slow tasks on old/busy nodes); 27 blocks each, ~1 GB, manifests with sha256. Fit arrays released.
