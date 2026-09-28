@@ -198,3 +198,8 @@ Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f
   Recover: `sacct -j 21726203,21726204,21726205,21726206,21726207,21726208,21726209,21726210 -o JobID,JobName%25,State,Elapsed`.
   The HANDOFF steps above apply with these IDs and this snapshot (resubmit failed indices from `snapshots/g1dp_a1_5f363f77476c`).
 - Bundles 21726203_[0-9] all COMPLETED (0.75–38 min; slow tasks on old/busy nodes); 27 blocks each, ~1 GB, manifests with sha256. Fit arrays released.
+- Monitoring 2026-09-29 ~00:05: fit_linear 21726204 — 5 units COMPLETED (seed 2 / fold 0: A, B, H, Hs, Cs), 8 RUNNING; poly2/rff/lgbm/mlp/knn
+  arrays pending on Priority. No Traceback/Error/Killed in any `results/g1dp/logs/fit_*`. Engineering check of the finished units
+  (study JSON only): all refits converged, all selected λ interior (A/B/H 1e-2, Hs 1e-1, Cs 1e0; no grid edge), HPO 2–5 min per arm.
+  Disclosure: that check displayed the inner-validation NLL of the selected and anchor-only candidates for this one fold; no
+  test-set accuracy or contrast was computed, and nothing is decided from partial results (spec §5: aggregation only after all arrays).
