@@ -140,3 +140,19 @@ Recover: `sacct -j 21726070,21726071,21726072,21726073,21726074,21726075,2172607
    commit + sidecar, snapshot `n1adp`, submit `python -m atlas.dp_submit n1adp <snapshot>`.
 5. Still running (engineering only, descriptive): eng_g1_linear 21725689, eng_g1_poly2 21725691, eng_n1a_poly2 21725692,
    eng_g1_rff 21725695, eng_g1_lgbm_C50_mds2 21725772, eng_g1_lgbm_AI_mds2 21725773 — append their timings/curves here when done.
+
+## STOP — raw-H_3.22 extraction gate (2026-09-28 ~22:55) — AWAITING RESEARCHER DECISION
+
+- extract_s2 21726070 COMPLETED: gate passed (max |P_rec − P_cache| 0.0078 = float16 half-ulp; argmax agreement ≥ 0.9991 all cells).
+- extract_s4 21726071 FAILED (exit 2): max |ΔP| ≤ 0.0152 everywhere (limit 0.05) and max |Δz| = 0, but argmax agreement
+  0.9988 (gaussian_noise_s5) and 0.9989 (defocus_blur_s5) < frozen 0.999. Consequently bundle 21726072, all six fit arrays
+  21726073–21726078 and aggregate 21726079 were CANCELLED by Slurm (afterok never satisfied). **No G1-DP fit or outcome exists.**
+- Diagnosis (label-free): all 12 + 11 disagreeing rows are EXACT ties in the float16 cache (cached top-1 − top-2 gap = 0.0; reconstructed
+  gap ≤ 0.0064 < float16 spacing). The re-extracted H_3.22 reproduces P_3.22 to cache precision; the argmax sub-criterion was
+  miscalibrated for float16 ties. Extracted arrays for both seeds are on disk: `results/g1dp/h322/seed{2,4}/` (+ seed-2 consistency.json).
+- Options: (A) follow the frozen spec literally: drop the raw tier (arms H, I, Hs) and state that raw layer3-vs-layer4 accessibility is
+  not tested — requires an engineering change so bundles/aggregation run without h3; (B) formally documented pre-outcome amendment of the
+  gate: compute argmax agreement only over rows whose cached top-1/top-2 are not tied at float16 precision (keep all other thresholds),
+  re-run extraction from a new snapshot, proceed with the full frozen arm set. Recommendation: (B) — it is label-free, pre-outcome,
+  and the defect is in the check, not the representation.
+- Engineering audits still running (descriptive only): 21725689, 21725691, 21725692, 21725695, 21725772, 21725773.
