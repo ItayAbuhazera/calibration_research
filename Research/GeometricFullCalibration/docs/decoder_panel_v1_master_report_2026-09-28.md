@@ -156,3 +156,9 @@ Recover: `sacct -j 21726070,21726071,21726072,21726073,21726074,21726075,2172607
   re-run extraction from a new snapshot, proceed with the full frozen arm set. Recommendation: (B) — it is label-free, pre-outcome,
   and the defect is in the check, not the representation.
 - Engineering audits still running (descriptive only): 21725689, 21725691, 21725692, 21725695, 21725772, 21725773.
+
+### Late engineering audit results (descriptive; cannot change frozen values) — 2026-09-28 ~23:10
+
+Measured on G1 arm C (2,148-d; 8 cores): linear 38 min, poly2 48 min (below the ~2 h extrapolation in the resource plan), rff 27 min.
+Arm I and the N1a poly2 audit were still running (jobs 21725689/91/92/95, 21725772/73). The 16 h poly2 limit and 8 h linear/rff limits
+remain conservative. The G1-DP arrays were not started (see STOP above); nothing is scheduled to run until the gate decision.
