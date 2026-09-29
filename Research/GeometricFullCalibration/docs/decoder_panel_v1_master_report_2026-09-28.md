@@ -248,3 +248,10 @@ Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f
 - 2026-09-29 10:47: lgbm 25/110 complete, 40 running; longest completed unit 1 h 57 min (limit 6 h); no errors/OOM/timeouts; aggregate pending.
 - 2026-09-29 11:49: lgbm 46/110 complete, 40 running; longest completed unit 167 min (limit 6 h); no errors/OOM/timeouts; aggregate pending. Runtime diagnosis (engineering metadata only): elapsed scales with arm input width (A 7–12 min, B 14–23, H/Hs 46–112, H_L-containing arms 82–167); ~1.5× within-tier spread from node generation (E5-2680 v2 vs v4) and Optuna-sampled hyperparameters (s/round, early-stopped rounds). No straggler nodes.
 - 2026-09-29 12:50: lgbm 70/110 complete, last 40 running (all tasks started); longest completed 171 min; longest running: idx 7 (seed2 fold0 arm I, 3,172-d) 247 min at 46/50 trials, ~312 s/trial → est. ~4.5 h total (< 6 h); idx 25/36 (arm D) est. ~4.2–4.3 h. No errors/OOM/timeouts; aggregate pending. (Trial counts/seconds only; no objective values read.)
+- 2026-09-29 13:41: lgbm 88/110 complete, 22 running; no errors. **Timeout risk:** idx 29 (seed 2, fold 2, arm I) at 240 min with
+  37/50 trials (~83 min trials + refit left) → est. ~335–340 min vs 360-min limit. In-place extension `scontrol update
+  jobid=21726207_29 TimeLimit=08:00:00` → "Access/permission denied" (users cannot raise limits). **Recovery plan if it times out:**
+  (1) `sb("g1dp","fit_lgbm_retry29", "<PY> -m atlas.g1dp fit_index --family lgbm --index $SLURM_ARRAY_TASK_ID --split_arms",
+  cwd="snapshots/g1dp_a1_5f363f77476c", array="29", cpus=8, mem="24G", hours="10:00:00")`; (2) aggregate 21726210 will not start
+  (afterok fails) → cancel it and resubmit `atlas.g1dp_aggregate` from the same snapshot afterok the retry. Scheduling-only; no design change.
+  Other long tasks: idx 51 (arm I) 43/50 trials ~36 min left; idx 36 (arm D) 50/50 in refit; idx 74 (Cs) ~23 min left.
