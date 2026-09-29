@@ -285,3 +285,12 @@ Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f
   benchmark); null poly2 21732556 at 2:25 of a 6 h limit. Hedge (scheduling only): `null_poly2_hedge` 21733698 (array 0-3, same snapshot
   `n1adp_audit_242c55939ba4`, same command/seeds, 16 h limit; deterministic, atomic identical outputs). If 21732556 times out, summary
   21732561 (afterok) will not run → run `python -m atlas.n1adp_audit summary` from the snapshot after the hedge completes.
+- 2026-09-29 ~20:20 (researcher instruction): hedge 21733698 CANCELLED after ~3 min (no output written — atomic end-of-job writes; no
+  `results/n1adp_audit/null/poly2/` files exist). Original 21732556 continues unchanged under its frozen 6 h limit (resources, HPO, seeds,
+  protocol untouched).
+  - If all four poly2 null tasks complete: summary 21732561 runs (afterok) → apply STOP rule, fill §6.4 / `n1adp_rules.NOISE`, present to
+    researcher; still no freeze or submission without review.
+  - **If any poly2 null task times out: do NOT resubmit with a longer limit.** Record the poly2 null audit as INCOMPLETE (runtime); N1a-DP
+    stays UNFROZEN and **PAUSED**; the remaining five-family null results must not be reinterpreted as the frozen six-family audit.
+  - N1a-DP is not to be launched in either case. Researcher's next scientific step: the separate internal-computation / recoverability
+    territory audit (not started; awaiting instructions).
