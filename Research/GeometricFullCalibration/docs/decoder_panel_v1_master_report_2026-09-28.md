@@ -244,3 +244,4 @@ Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f
   array's own %20 throttle (reason JobArrayTaskLimit; `cpu` partition had ~2,370 idle cores). Researcher asked for more parallelism →
   `scontrol update jobid=21726207 ArrayTaskThrottle=40` (scheduling only; ≤ 320 cores; same command/snapshot/mapping/budget/design).
   40 tasks running immediately after. Aggregate 21726210 unchanged (afterok all six arrays). No partial results inspected.
+- 2026-09-29 09:46: lgbm 8/110 complete, 40 running (throttle 40), rest queued; other five families complete (550/550 units); no errors/OOM/timeouts; aggregate pending.
