@@ -224,3 +224,19 @@ Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f
 2. When 21726210 completes: read `results/g1dp/report/g1dp_aggregate.json` + `g1dp_table.md`; write `docs/g1_decoder_panel_audit_2026-09-28.md`
    (prompt §45 structure; verdicts exactly per frozen rules + Amendment 1); experiment card in ResearchBrain/05_Experiments; update this report.
 3. Then N1a-DP: finish `N1ADP_RES` in `atlas/dp_submit.py` from the resource plan, freeze `docs/n1a_dp_spec.md` (+ sidecar), snapshot, submit.
+
+### Scheduling-only change to lgbm array 21726207 (2026-09-29 ~08:45; researcher-authorized)
+
+- Measured G1-scale LightGBM runtimes (engineering, synthetic targets, 8 cores, max_delta_step 2.0): arm C (2,148-d) 50 trials 1.83 h
+  (job 21725772, 1:50 elapsed); arm I (3,172-d) 30 trials 1.31 h → ≈ 2.2 h at 50 trials incl. refit (job 21725773); arm A 0.19 h;
+  longest single trial 12.8 min. Worst representative ≈ 2.2 h.
+- `scontrol update jobid=21726207 TimeLimit=06:00:00` (was 1-00:00:00; ≈ 2.7× the worst representative runtime). Same command,
+  snapshot `g1dp_a1_5f363f77476c`, array mapping, %20, cpus/mem, HPO budget and design — only the Slurm limit changed.
+  Any task that times out is restart-safe per (seed, fold, arm) and will be resubmitted by index (same snapshot) with a longer limit.
+- Effect on start estimate: squeue --start remained N/A; matching `sbatch --test-only` probe moved from 2026-09-30 23:00 (24 h) to
+  2026-09-30 22:28 (6 h) — not material. Decision: **keep the job on the `cpu` partition and wait.**
+- GPU nodes NOT used: `rtx4090` partition has MaxCPUsPerNode=UNLIMITED, DefCpuPerGPU=10 on 32-core / 3-GPU nodes, OverSubscribe=NO —
+  CPU-only jobs would consume cores that GPU jobs need (no CPU reservation), so they could prevent GPU use by others; per the
+  researcher's rule, fair-share is not bypassed via GPU nodes.
+- Constraints in force: no partial scientific results inspected; N1a-DP not frozen or run until the complete six-family G1-DP
+  aggregation (21726210) is available.
