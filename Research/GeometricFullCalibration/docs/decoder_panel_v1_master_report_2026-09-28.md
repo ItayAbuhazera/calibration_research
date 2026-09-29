@@ -257,3 +257,14 @@ Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f
   Other long tasks: idx 51 (arm I) 43/50 trials ~36 min left; idx 36 (arm D) 50/50 in refit; idx 74 (Cs) ~23 min left.
 - 2026-09-29 14:43: lgbm 101/110 complete, 9 running; no errors/OOM/timeouts. idx 29 (arm I) 303 min runtime, 48/50 trials → est. ~325 min (< 360) — recovery plan likely unnecessary. Remaining projections (trial counts/seconds only): idx 84 (arm I) ~300 min total, idx 73 (arm I) ~262 min, others ≤ ~200 min. Aggregate 21726210 pending.
 - 2026-09-29 15:29: idx 29 COMPLETED in 5:14:15 (within 6 h; no recovery needed). lgbm 107/110 complete, 3 running (idx 84 arm I, 106 arm I, 109 arm Ds); no errors/OOM/timeouts; aggregate pending.
+
+## Stage E/F — G1-DP COMPLETE (2026-09-29 16:46)
+
+- lgbm idx 84 COMPLETED 4:52:08; all 660 units complete; aggregate 21726210 COMPLETED (9:24). Artifacts:
+  `results/g1dp/report/g1dp_aggregate.json`, `results/g1dp/report/g1dp_table.md`.
+- **Frozen verdicts (g1_dp_spec §8 + Amendment 1): B−C, H−C, D−C all INCONCLUSIVE (validity)** — only 4 families valid in both
+  checkpoints (poly2, lgbm, knn, rff) < the frozen minimum of 5. Failures (V5 shuffle control, checkpoint 2 only): linear Hs−A = +0.259 pp
+  (≥ +0.2); mlp Ds−C = +0.202 pp (≥ +0.2). All other validity checks (convergence, strong-λ edge, JL audit, completeness, both gates) passed.
+- Recorded limitation: kNN selected the anchor-only candidate in every fold of arms A/B/C (contrasts exactly 0.00); it is "valid" but
+  uninformative for B−C/D−C.
+- Report `docs/g1_decoder_panel_audit_2026-09-28.md` to be written next; N1a-DP go/no-go pending researcher decision (see report).
