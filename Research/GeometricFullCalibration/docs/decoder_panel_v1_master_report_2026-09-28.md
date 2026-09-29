@@ -210,3 +210,4 @@ Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f
   12 h or 8 h limit → 2026-09-30 23:15. A shorter limit gains only ~6 h (estimates are coarse) while risking timeouts on the
   3,172-d arms; the bottleneck is fair-share priority on a busy cluster. **Decision: keep 21726207 as submitted (no churn).**
   Expect G1-DP completion ~1–2 days out, dominated by lgbm. No errors; no resubmission.
+- Monitoring 2026-09-29 ~04:20: poly2 108/110 (2 running); linear/rff/mlp/knn complete; lgbm 21726207 still fully PENDING (Priority); aggregate pending. No errors; no resubmission.
