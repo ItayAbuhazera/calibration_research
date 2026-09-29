@@ -256,3 +256,4 @@ Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f
   (afterok fails) → cancel it and resubmit `atlas.g1dp_aggregate` from the same snapshot afterok the retry. Scheduling-only; no design change.
   Other long tasks: idx 51 (arm I) 43/50 trials ~36 min left; idx 36 (arm D) 50/50 in refit; idx 74 (Cs) ~23 min left.
 - 2026-09-29 14:43: lgbm 101/110 complete, 9 running; no errors/OOM/timeouts. idx 29 (arm I) 303 min runtime, 48/50 trials → est. ~325 min (< 360) — recovery plan likely unnecessary. Remaining projections (trial counts/seconds only): idx 84 (arm I) ~300 min total, idx 73 (arm I) ~262 min, others ≤ ~200 min. Aggregate 21726210 pending.
+- 2026-09-29 15:29: idx 29 COMPLETED in 5:14:15 (within 6 h; no recovery needed). lgbm 107/110 complete, 3 running (idx 84 arm I, 106 arm I, 109 arm Ds); no errors/OOM/timeouts; aggregate pending.
