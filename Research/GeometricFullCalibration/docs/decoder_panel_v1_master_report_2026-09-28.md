@@ -310,3 +310,8 @@ G1-DP (including its poly2 results) are unchanged.
 
 Program status: **N1a-DP DRAFT / PAUSED / NOT AUTHORIZED** pending research-direction selection (internal computation trajectories →
 recoverability → selective internal repair / intervention, to be handled in a fresh session). N1b not begun. No job running.
+- Five-family pre-freeze methodology report `docs/n1a_dp_prefreeze_methodology_audit_2026-09-29.md`; summary `results/n1adp_audit/summary_5family.json`
+  (script `atlas/n1adp_audit_report5.py`; frozen runner unmodified). STOP rule does not fire (LightGBM 1/4 null joint pass; others 0/4).
+  Noise: LightGBM s(I2) 0.0672 → τ 0.1344 pp; MLP s(I2) 0.0614 → τ 0.1228 pp; deterministic τ 0.10 pp. C0 reproduces exactly (0.0 pp).
+  Spec `docs/n1a_dp_spec.md` = DRAFT r4 (NOT FROZEN, NOT AUTHORIZED; no sidecar). **N1a-DP PAUSED pending research-direction selection.**
+  Nothing running. Next: fresh session for the internal-computation / recoverability territory audit (not started here).
