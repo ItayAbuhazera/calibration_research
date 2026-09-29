@@ -39,3 +39,9 @@ SAME PHENOMENON / names T2 → T2 KILLED as standalone ([[Recoverability of fina
 
 ## Follow-up
 Re-check revised versions before any submission (unrefereed; same group as [[Representation Trajectories Matters]]).
+
+## Correction 2026-09-29 — lead full-text read (red-team `GeometricFullCalibration/docs/internal_computation_recoverability_redteam_2026-09-29.md` §3 E2)
+Body now lead-verified from the arXiv HTML. **Table 1's recovery rates (18–76 %) are for 16 clean datasets only.** CIFAR-100-C appears
+only in Table 3 (accuracy: best layer 73.1, VFusion 74.4, Oracle 81.0); no recovery rate is reported there. Recoverability is an oracle
+any-layer count over MLP probes on frozen DINOv2. The "Benchmark / task" line above is correct about the shift sets, but the recoverability
+*metric* was not reported under shift. T2's kill no longer rests on this paper's CIFAR-100-C numbers.

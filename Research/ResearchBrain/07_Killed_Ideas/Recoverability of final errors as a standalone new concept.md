@@ -28,3 +28,10 @@ A chance-corrected, harm-accounted recoverability measure on a native head as th
 
 ## Conditions under which to revisit
 None as a standalone concept; only as a component of a selection or causal result.
+
+## Correction 2026-09-29 — evidence re-based (verdict unchanged: killed)
+
+Red-team full-text check (`GeometricFullCalibration/docs/internal_computation_recoverability_redteam_2026-09-29.md` §3 E2, §6): Vertical Fusion's recovery rates (18–76 %, Table 1) are **oracle any-layer counts on 16 clean
+datasets**. For CIFAR-100-C it reports only fusion accuracy and an oracle row (Table 3), so "measures it incl. CIFAR-100-C" above is
+overstated. The kill rests on SelfChecker (label-free internal "advice", Table III lowers CIFAR-100 accuracy 66.79 → 66.16 / 69.52 → 68.85;
+lead-verified) and on the explicit detection vs correct-answer distinction (Orgad et al.; KAPPA).

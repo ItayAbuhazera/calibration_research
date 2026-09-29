@@ -50,3 +50,9 @@ PHENOMENON AND METHOD ESTABLISHED for trajectory-as-complementary-evidence; leav
 
 ## Follow-up
 None authorized. Same group: [[Vertical Fusion - Recoverability in ViT Hierarchies]]; Voyager (arXiv 2609.20299, OOD layer routing).
+
+## Correction 2026-09-29 — scope of the order evidence (red-team `GeometricFullCalibration/docs/internal_computation_recoverability_redteam_2026-09-29.md` §3 E1)
+"Consistent performance under fixed layer permutations" and "reverse prediction easier" both belong to the §4.3 / App. L.4
+transition-continuity validation, not to recognition or OOD utility. App. F.2 says the permutation test "cannot establish that an ordered
+predictor beats the same states given to a capacity-matched set encoder". The kill of "ordered trajectory" now rests on the fact that an
+indexed set and an ordered sequence carry the same information, not on these results.

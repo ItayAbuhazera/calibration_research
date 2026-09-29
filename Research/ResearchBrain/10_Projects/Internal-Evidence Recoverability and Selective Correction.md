@@ -1,6 +1,6 @@
 ---
 type: project
-status: draft_for_discussion
+status: audited
 date: 2026-09-29
 project: Full-Vector Geometric Calibration
 tags: [research-line, recoverability, selective-repair, trajectories, territory-audit, prior-art-audit]
@@ -57,3 +57,27 @@ N1a-DP. Otherwise this line is recorded as audited and closed. Hypothesis cards:
 ## What this note does NOT establish
 
 No new empirical result; no novelty for any candidate; no authorization for POC-T1/T3/T4, N1a-DP or N1b.
+
+## Correction 2026-09-29 — red-team of the audit (verdicts revised; text above preserved as the original audit record)
+
+Source: `GeometricFullCalibration/docs/internal_computation_recoverability_redteam_2026-09-29.md` (all 13 load-bearing primary sources re-read in full text by the lead; no experiment; no data opened). Status changed
+`draft_for_discussion` → `audited`: **territory CLOSED as a next-stage candidate**; T3 kept only as a dormant WATCH item.
+
+| Candidate | Original | Revised |
+|---|---|---|
+| T1 class-evidence evolution | WATCH | **KILL** (standalone) — [[Class-evidence suppression through depth as a standalone problem in an end-to-end CNN]] |
+| T2 recoverability | KILL | KILL (evidence re-based: SelfChecker / Orgad / KAPPA; Vertical Fusion's recovery rates are oracle and clean-only) |
+| T3 selective internal repair | WATCH | **WATCH (dormant)** |
+| T4 causal recoverability | WATCH (low) | **KILL** — [[Non-oracle causal recoverability via internal edits in a fixed classifier]] |
+| T5 graph / ordered trajectory | KILL | KILL (ordered-trajectory reason corrected: indexed set ≡ ordered sequence) |
+| RL / DRL | CURRENTLY UNJUSTIFIED | unchanged |
+| **POC-T3** | cheap closure test | **DO NOT RUN** |
+
+Why POC-T3 is not run: the fixed-gate study already ran its central contrast. The internal-evidence gate vs output-evidence gate on the
+same deep candidate gave Z1 − Z0 = −0.038 [−0.086, 0.012] / −0.037 [−0.127, 0.054] pp (corruption macro-12), and C0 ≈ Z1
+([[2026-09-21 Fixed Deep Candidate Gate Study]], 2026-09-22 correction). The candidate band is outcome-informed. The spec lacks
+output + candidate-confidence and layer4.2-only controls. No plausible outcome changes allocation. The earlier line "no consistent held-out
+benefit" is corrected: the pipeline gain over base is small and positive (+0.075 / +0.213 pp, intervals exclude 0); what is null is the
+internal-over-output increment. Reopen triggers are recorded on [[H-SELREP-01 Multi-depth internal evidence discriminates repair from harm beyond output evidence under held-out corruption]].
+New prior art: [[Causality is not Decodability - Counting ViTs]], [[When is Test-Time Adaptation Identifiable From Unlabeled Evidence]].
+N1a-DP remains **PAUSED** (not edited). G1-DP remains INCONCLUSIVE (validity).

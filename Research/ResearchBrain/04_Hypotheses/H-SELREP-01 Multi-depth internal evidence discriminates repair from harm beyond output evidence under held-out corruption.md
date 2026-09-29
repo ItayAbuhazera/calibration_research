@@ -55,3 +55,17 @@ selectors — no universal CI rule.
 [[To Adapt or Not to Adapt - Selective Adaptation for VLMs]]; [[Self-Checking Deep Neural Networks in Deployment]]; ALTAS; CALRD;
 [[Representation Trajectories Matters]] margin gate. Not authorized; decide jointly with the PAUSED N1a-DP
 ([[Internal-Evidence Recoverability and Selective Correction]]).
+
+## Correction 2026-09-29 — red-team: POC-T3 DO NOT RUN; hypothesis dormant (status unchanged: proposed)
+
+Source: `GeometricFullCalibration/docs/internal_computation_recoverability_redteam_2026-09-29.md` §11. Not tested; no data opened.
+* Central contrast already run under clean-fitting: fixed-gate Z1 − Z0 null in both checkpoints ([[2026-09-21 Fixed Deep Candidate Gate Study]]).
+* Confounds in the spec as written: (a) the internal selector sees the candidate's confidence, the F_Z selector does not; (b) the 12 × 100
+  probe block is much wider than F_Z (G1-DP width/shuffle issues); (c) no layer4.2-only arm, so depth is not separated from a family-fitted
+  representation readout; (d) the candidate depth band is informed by exposed results (Stage-0 ablation), and clean-only selection is
+  impossible because all clean probes are below the head.
+* +0.25 pp is a detectability threshold, not a scientific effect size. Primary quantities, if ever run: fraction of oracle-gated headroom
+  captured; repair-vs-harm AUROC among disagreements.
+* Reopen only if: (i) a primary source shows an internal gate beating output + candidate-confidence for label-changing corrections under
+  held-out natural shift in vision; (ii) N1a-DP is authorized (then only as a preregistered secondary arm with controls (a)–(d)); (iii) a
+  substrate where some clean depth probe beats the head.

@@ -1,6 +1,6 @@
 ---
 type: hypothesis
-status: proposed
+status: superseded
 project: Full-Vector Geometric Calibration
 benchmark: CIFAR-100 / CIFAR-100-C (12 exposed development cells), ResNet-101, checkpoints 2 and 4
 novelty: unknown (territory audit 2026-09-29: WATCH — phenomenon taken; controlled characterization possibly open)
@@ -47,3 +47,9 @@ As row 1 (≥ 5 pp). Descriptive only — a positive result is not a contributio
 ## Prior-art threats
 Shallow-Deep Networks; [[Understanding the Robustness of Multi-Exit Models under Common Corruptions]]; [[Vertical Fusion - Recoverability in ViT Hierarchies]];
 CALRD (direction signature in MLLMs); Corruption Depth (Neural Networks 2024, not read in full). Not authorized.
+
+## Correction 2026-09-29 — superseded by red-team (not tested)
+
+Status `proposed` → `superseded`. The standalone T1 question is killed by prior art and own-evidence constraints, not by an experiment:
+[[Class-evidence suppression through depth as a standalone problem in an end-to-end CNN]]. The matched-event design above is kept as a
+*control* for any future reopening of [[H-SELREP-01 Multi-depth internal evidence discriminates repair from harm beyond output evidence under held-out corruption]]. Source: `GeometricFullCalibration/docs/internal_computation_recoverability_redteam_2026-09-29.md` §5.

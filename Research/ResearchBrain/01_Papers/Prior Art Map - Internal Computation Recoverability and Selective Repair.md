@@ -52,3 +52,11 @@ and collision matrix: `GeometricFullCalibration/docs/internal_computation_recove
 
 ## What this map does NOT establish
 Paper-level claims are as read (lead-verified abstracts or subagent-read bodies, marked in the report); no claim about our models.
+
+## Addendum 2026-09-29 — red-team (`GeometricFullCalibration/docs/internal_computation_recoverability_redteam_2026-09-29.md`)
+Lead full-text verification of all 13 load-bearing sources. Qualifications: Vertical Fusion recovery rates are clean-only and oracle
+(E2); Representation Trajectories order evidence is continuity-only (E1); Selective Adaptation pools negligible + harmful and targets
+efficiency (E3); DeepCorrect clean replacement is a filter-ranking definition (E4); Fast yet Safe bounds early-exit degradation, not
+repair (E5); KAPPA "mitigates" (E6). Corruption Depth (Neural Networks 2024): full text inaccessible; abstract read → SAME PHENOMENON
+(T1). New: [[Causality is not Decodability - Counting ViTs]] (moves T4 → KILL); [[When is Test-Time Adaptation Identifiable From Unlabeled Evidence]]
+(adjacent; POC-T3 interpretation); LOES (ICML 2026), CODEC (ICLR 2026), Policy Gradient Steering, BEEM (ICLR 2025): adjacent, no verdict change.

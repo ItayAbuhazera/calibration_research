@@ -34,3 +34,9 @@ held-out corruption families) — see [[H-SELREP-01 Multi-depth internal evidenc
 
 ## Novelty relevance
 SAME PROBLEM STRUCTURE for T3. Neighborhood not saturated — re-check before any submission.
+
+## Correction 2026-09-29 — collision class narrowed (red-team `GeometricFullCalibration/docs/internal_computation_recoverability_redteam_2026-09-29.md` §3 E3)
+Full text lead-verified. The binary target pools *negligible + harmful* ("ineffective") against beneficial. The objective is efficiency
+("skip as many ineffective adaptations as possible while maintaining or even improving overall accuracy"; skips ≈85 %). The score is
+output-level (cross-augmentation similarity). It takes the apply/skip *structure* and the per-sample harm taxonomy, **not** signed
+repair-vs-harm discrimination for a label-changing correction. T3's verdict (WATCH) is unchanged.
