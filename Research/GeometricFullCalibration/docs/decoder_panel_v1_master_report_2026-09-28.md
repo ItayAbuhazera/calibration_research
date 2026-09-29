@@ -279,3 +279,5 @@ Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f
   STOP if any family passes I1 and I2 in ≥ 2 of 4 null units.
 - Production `atlas/n1adp.py` now records the I2 inputs (inner selected utility, inner best-constant utility, margin, evaluation route rate).
 - N1a-DP spec remains an unfrozen DRAFT; not submitted.
+- Audit snapshot `snapshots/n1adp_audit_242c55939ba4` (git_head 07db6ed). Intended: `python -m atlas.dp_submit n1adp_audit snapshots/n1adp_audit_242c55939ba4` (A_lgbm, B_lgbm, A_mlp, B_mlp arrays 0-3; null_<family> arrays 0-3 ×6; summary afterok all).
+  Submitted 2026-09-29T17:50: A_lgbm 21732551 B_lgbm 21732552 A_mlp 21732553 B_mlp 21732554 null_linear 21732555 null_poly2 21732556 null_lgbm 21732557 null_mlp 21732558 null_knn 21732559 null_rff 21732560 summary 21732561 (summary afterok all). Recover: `sacct -j 21732551,21732552,21732553,21732554,21732555,21732556,21732557,21732558,21732559,21732560,21732561`.
