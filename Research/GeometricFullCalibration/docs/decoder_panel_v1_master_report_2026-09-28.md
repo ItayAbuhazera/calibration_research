@@ -294,3 +294,19 @@ Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f
     stays UNFROZEN and **PAUSED**; the remaining five-family null results must not be reinterpreted as the frozen six-family audit.
   - N1a-DP is not to be launched in either case. Researcher's next scientific step: the separate internal-computation / recoverability
     territory audit (not started; awaiting instructions).
+
+## Prospective design change: poly2 removed from N1a-DP (researcher decision 2026-09-29 ~20:45)
+
+**A. ORIGINAL AUDIT RECORD (six-family frozen protocol, unchanged).** Cancelled: null_poly2 21732556 (all 4 tasks, at 2 h 41 min of a
+6 h limit, no output written), hedge 21733698 (already cancelled), dependent summary 21732561 (never ran). Recorded exactly:
+"The original six-family N1a-DP pre-freeze audit did not complete for poly2 because its null-control runtime was judged disproportionate
+to its scientific value for this prospective experiment." This is NOT a scientific failure of poly2, NOT evidence that poly2 would not
+work, and NOT a reinterpretation of any completed result. All completed audit outputs (`results/n1adp_audit/{A,B,null}/`) remain
+immutable; the frozen plan `docs/n1a_dp_stochasticity_audit_plan.md` and its hash are unchanged.
+
+**B. PROSPECTIVE N1a-DP DESIGN (created after the resource decision).** Five families: linear, rff, LightGBM, MLP, kNN; structural groups
+{linear, rff}, {LightGBM}, {MLP}, {kNN}. Uses the already-completed applicable audit outputs for these five families. Decoder Panel v1 and
+G1-DP (including its poly2 results) are unchanged.
+
+Program status: **N1a-DP DRAFT / PAUSED / NOT AUTHORIZED** pending research-direction selection (internal computation trajectories →
+recoverability → selective internal repair / intervention, to be handled in a fresh session). N1b not begun. No job running.
