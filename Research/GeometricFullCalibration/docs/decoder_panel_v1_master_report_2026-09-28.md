@@ -268,3 +268,4 @@ Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f
 - Recorded limitation: kNN selected the anchor-only candidate in every fold of arms A/B/C (contrasts exactly 0.00); it is "valid" but
   uninformative for B−C/D−C.
 - Report `docs/g1_decoder_panel_audit_2026-09-28.md` to be written next; N1a-DP go/no-go pending researcher decision (see report).
+- 2026-09-29: G1-DP report committed (`docs/g1_decoder_panel_audit_2026-09-28.md`, 559f247). Researcher: do NOT freeze/submit N1a-DP yet; revise draft first. Draft r2 of `docs/n1a_dp_spec.md` (continuity control C0 = historical N1a selector outputs; informativeness I1/I2; seed-robust labels from a stochasticity audit) and `docs/n1a_dp_stochasticity_audit_plan.md` committed as DRAFTS for researcher review; nothing frozen or submitted.
