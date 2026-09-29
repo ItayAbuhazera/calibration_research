@@ -315,3 +315,9 @@ recoverability → selective internal repair / intervention, to be handled in a 
   Noise: LightGBM s(I2) 0.0672 → τ 0.1344 pp; MLP s(I2) 0.0614 → τ 0.1228 pp; deterministic τ 0.10 pp. C0 reproduces exactly (0.0 pp).
   Spec `docs/n1a_dp_spec.md` = DRAFT r4 (NOT FROZEN, NOT AUTHORIZED; no sidecar). **N1a-DP PAUSED pending research-direction selection.**
   Nothing running. Next: fresh session for the internal-computation / recoverability territory audit (not started here).
+
+## Internal-computation territory audit (2026-09-29, separate task)
+
+Prior-art / problem-discovery audit only (no experiment, no outcome computed, no job submitted): `docs/internal_computation_recoverability_territory_audit_2026-09-29.md`.
+Verdicts: T1 WATCH, T2 KILL, T3 WATCH, T4 WATCH (low), T5 KILL, RL CURRENTLY UNJUSTIFIED; no TEST NOW. G1-DP unchanged (INCONCLUSIVE (validity)).
+**N1a-DP remains DRAFT r4 / NOT FROZEN / NOT AUTHORIZED / PAUSED.** The audit's only candidate next step (read-only POC-T3) shares N1a-DP's selector machinery and should be decided jointly with it by the researcher.
