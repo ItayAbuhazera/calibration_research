@@ -145,3 +145,7 @@ Source: [[2026-09-28 G1 Conditional Accessibility Gatekeeper]] (frozen spec `Geo
 * **The Stage-0 branch is stopped under frozen Outcome C** (capacity / estimation confound). No further budgets, ridge grids, nonlinear H_L recovery, layer sweeps, extra checkpoints or PCA on this branch.
 
 Related: [[H-ACCESS-01 Mid-depth evidence adds target-fitted value beyond (Z, H_L) in end-to-end ResNet-101 under corruption]], [[A full-rank penultimate target readout does not reproduce the compact layer3 probe increment in ResNet-101]], [[Equivalent feature spans can differ materially under finite-sample regularized readouts]]. Next (proposed, not an Idea note): an action-ambiguity audit (N1a) — see [[2026-W40]].
+
+## Territory-audit pointer — 2026-09-29 (appended; nothing above rewritten)
+
+A prior-art audit of the within-model direction (internal evidence → recoverability → selective repair) found no TEST NOW candidate; see [[Internal-Evidence Recoverability and Selective Correction]] and `GeometricFullCalibration/docs/internal_computation_recoverability_territory_audit_2026-09-29.md`. No claim in this note changes. New cross-links: [[Clean-trained depth probes in ResNet-101 are below the head at every depth in every tested condition]] (from existing Stage-0b artifacts), [[Oracle any-layer recoverability counts overstate correction headroom]]. Program status: G1-DP INCONCLUSIVE (validity); N1a INCONCLUSIVE; N1a-DP PAUSED (unfrozen, unauthorized); N1b not started.
