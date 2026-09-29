@@ -263,18 +263,19 @@ def test_n1adp_decision_rule():
     res = {"phi_ci": (.60, .70), "U_ci": (2.5, 3.5), "MA_ci": (1.5, 2.5)}
     sub = {"phi_ci": (.10, .20), "U_ci": (6.5, 7.5), "MA_ci": (6.8, 7.2)}
     mid = {"phi_ci": (.35, .45), "U_ci": (4.6, 5.4), "MA_ci": (1.5, 4.0)}
-    fams = dp.FAMILIES; allv = set(fams); MB = {2: 3.5, 4: 3.4}
+    fams = R.FAMILIES5; allv = set(fams); MB = {2: 3.5, 4: 3.4}
     mk = lambda d: {f: {2: d[f], 4: d[f]} for f in fams}  # noqa: E731
     inf = lambda ok: {f: {2: ok(f), 4: ok(f)} for f in fams}  # noqa: E731
     yes = inf(lambda f: True)
     assert R.decide(mk({f: sub for f in fams}), MB, allv, yes, table=T)["outcome"] == "ROBUST"
     assert R.decide(mk({f: sub for f in fams}), {2: 0.5, 4: 3.4}, allv, yes, table=T)["outcome"] == "INC"
-    # structurally distinct resolvers required: two l2-head families alone -> not LIMIT
-    assert R.decide(mk({f: (res if f in ("linear", "poly2") else sub) for f in fams}), MB, allv, yes, table=T)["outcome"] == "SPECIFIC"
+    # structurally distinct resolvers required: the two l2-head families (linear, rff) alone -> not LIMIT
+    assert R.decide(mk({f: (res if f in ("linear", "rff") else sub) for f in fams}), MB, allv, yes, table=T)["outcome"] == "SPECIFIC"
     assert R.decide(mk({f: (res if f in ("linear", "lgbm") else sub) for f in fams}), MB, allv, yes, table=T)["outcome"] == "LIMIT"
     assert R.decide(mk({f: (mid if f == "lgbm" else sub) for f in fams}), MB, allv, yes, table=T)["outcome"] == "INC"
-    assert R.decide(mk({f: sub for f in fams}), MB, set(fams[:4]), yes, table=T)["outcome"] == "INC_VALID"
-    # non-informative families cannot support ROBUST: only 3 informative -> INC
+    assert R.decide(mk({f: sub for f in fams}), MB, set(fams[:3]), yes, table=T)["outcome"] == "INC_VALID"
+    assert "poly2" not in R.GROUPS and len(fams) == 5 and R.MIN_VALID == 4 and R.MIN_INFORMATIVE == 4
+    # non-informative families cannot support ROBUST: only 3 of 5 informative -> INC
     three = inf(lambda f: f in ("linear", "lgbm", "mlp"))
     assert R.decide(mk({f: sub for f in fams}), MB, allv, three, table=T)["outcome"] == "INC"
     # seed margin on the exact metric: phi_lo 0.52 passes for deterministic linear, fails for lgbm (0.52 - 0.04 < 0.5)
@@ -343,3 +344,13 @@ def test_n1adp_audit_spread_emits_no_mean_and_inner_const():
     y = np.array([2, 2, 1, 0, 1, 1]); splits = [(np.array([0, 1]), np.array([2, 3])), (np.array([3, 4]), np.array([0, 5]))]
     # split 1: fit mean Delta = +1 -> route-all -> mean Delta_val = (0 - 1)/2 ; split 2: fit mean = (-1 + 0)/2 < 0 -> keep-all -> 0
     assert n1adp.inner_const_utility(y, splits) == pytest.approx((-0.5 + 0.0) / 2)
+
+
+def test_n1adp_noise_constants_match_audit():
+    import json as _j
+    from atlas import n1adp_rules as R
+    S = _j.load(open("results/n1adp_audit/summary_5family.json"))["stochastic"]
+    for f in R.STOCHASTIC:
+        for q in ("inner_margin_pp", "phi", "U", "MA"):
+            assert R.NOISE[f][q] == S[f]["s"][q]
+        assert R.tau(f) == pytest.approx(max(0.10, 2 * S[f]["s"]["inner_margin_pp"]))

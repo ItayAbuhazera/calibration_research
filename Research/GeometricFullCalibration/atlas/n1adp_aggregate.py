@@ -52,8 +52,8 @@ def main():
     res = {"label": "N1a-DP development audit on exposed cells; Decoder Panel v1 output-only selectors (F_Z(b), 206 features); shift-transfer "
                     "HPO (inner leave-one-training-family-out, objective = realized policy utility); family + image-identity holdout; "
                     "95% image-group bootstrap (one resample array per base shared by all families)", "bases": {}}
-    FAMS = tuple(dp.FAMILIES) + ("C0",)
-    per = {f: {} for f in FAMS}; MB = {}; validity = {f: {} for f in dp.FAMILIES}; info = {f: {} for f in dp.FAMILIES}; unit_pass = {}
+    FAMS = tuple(rules.FAMILIES5) + ("C0",)
+    per = {f: {} for f in FAMS}; MB = {}; validity = {f: {} for f in rules.FAMILIES5}; info = {f: {} for f in rules.FAMILIES5}; unit_pass = {}
     for base in n1a.BASES:
         rng = np.random.default_rng(BOOT_SEED + 70000 + base); idx = rng.integers(0, ng, (B, ng))
         R = np.zeros((B, ng), np.float32)
@@ -96,7 +96,7 @@ def main():
                           "route_rate": 100 * float(route.mean()), "MA": 100 * ma,
                           "calibration_bins": cal, "calibration_error_pp": 100 * float(sum(c["n"] * abs(c["mean_e"] - c["mean_delta"]) for c in cal) / n),
                           "by_severity": by_sev, "fold_meta": meta}
-                if fam == dp.FAMILIES[0]:
+                if fam == rules.FAMILIES5[0]:
                     mb = knn_ambiguity(P); mb_pt.append(100 * float(mb.mean())); Sm = np.bincount(g, weights=mb, minlength=ng); mb_boot[:, hi] = R @ Sm / N
             ci = lambda a: [float(np.quantile(a, q)) for q in (.025, .975)]  # noqa: E731
             pt = lambda k: float(np.mean([fs[h][k] for h in n1a.FAMILIES]))  # noqa: E731
@@ -122,12 +122,12 @@ def main():
                                          "informative": info[fam][base], "unit_pass_I1_I2": up, "tau_pp": rules.tau(fam)}
         MB[base] = float(np.mean(mb_pt)); base_out["MB_local_Z"] = MB[base]; base_out["MB_ci"] = [100 * float(np.quantile(mb_boot.mean(1), q)) for q in (.025, .975)]
         res["bases"][str(base)] = base_out
-    valid = {f for f in dp.FAMILIES if all(all(v.values()) for v in validity[f].values())}
+    valid = {f for f in rules.FAMILIES5 if all(all(v.values()) for v in validity[f].values())}
     res["valid_families"] = sorted(valid)
     hist = json.load(open(N1A_REPORT))["bases"]
     vc0 = {b: abs(per["C0"][b]["G"] - hist[str(b)]["family_macro"]["G_Z"]) for b in n1a.BASES}
     res["V_C0"] = {"abs_diff_pp": vc0, "tolerance_pp": 1e-9, "passed": all(v <= 1e-9 for v in vc0.values())}
-    res["decision"] = rules.decide({f: per[f] for f in dp.FAMILIES}, MB, valid, info, validity_extra_ok=res["V_C0"]["passed"])
+    res["decision"] = rules.decide({f: per[f] for f in rules.FAMILIES5}, MB, valid, info, validity_extra_ok=res["V_C0"]["passed"])
     res["historical_reference"] = {"N1a_G_Z_pp": {"2": 2.03, "4": 1.25}, "N1a_MA_pp": {"2": 7.12, "4": 6.91}, "N1a_MB_pp": {"2": 3.51, "4": 3.44},
                                    "N1a_Q_Zother_reference_pp": {"2": 0.54, "4": 0.41}, "note": "reference only; Z_other is not admissible pre-action evidence"}
     json.dump(res, open(f"{REPORT}/n1adp_aggregate.json", "w"), indent=1, default=float)

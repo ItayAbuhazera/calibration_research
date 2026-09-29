@@ -1,4 +1,4 @@
-"""Frozen N1a-DP decision (docs/n1a_dp_spec.md sec. 6-7, draft r3) as pure functions. Inputs in pp (phi as a fraction).
+"""N1a-DP decision (docs/n1a_dp_spec.md sec. 6-7, DRAFT r4 — NOT FROZEN, NOT AUTHORIZED) as pure functions. Inputs in pp (phi as a fraction).
 
 per[family][base] = {"phi_ci": (lo, hi), "U_ci": (lo, hi), "MA_ci": (lo, hi), ...}
 informative[family][base] = bool (I1/I2 rule, sec. 6.2); MB[base] = local-Z ambiguity (pp); valid = set of valid families.
@@ -7,14 +7,16 @@ NOISE[family] = {"phi": s, "U": s, "MA": s, "inner_margin_pp": s} for stochastic
 PHI_RES, MA_RES = 0.5, 3.5
 U_SUB, MA_SUB = 4.0, 2.0
 MB_MIN = 1.0
-MIN_VALID = 5
+FAMILIES5 = ("linear", "rff", "lgbm", "mlp", "knn")   # prospective five-family N1a-DP panel (poly2 removed prospectively, r4)
+MIN_VALID = 4                    # at most one invalid family (r3: 5 of 6; same tolerance of one invalid family)
 MIN_INFORMATIVE = 4
 TAU_FLOOR = 0.10
 I_UNITS, I_FOLDS = 16, 3            # informativeness: >= 16/20 units overall and >= 3/5 folds in every held-out family
 ROUTE_LO, ROUTE_HI = 0.01, 0.99
-GROUPS = {"linear": "l2head", "poly2": "l2head", "rff": "l2head", "lgbm": "trees", "mlp": "neural", "knn": "local"}
+GROUPS = {"linear": "l2head", "rff": "l2head", "lgbm": "trees", "mlp": "neural", "knn": "local"}
 STOCHASTIC = ("lgbm", "mlp")
-NOISE = None                        # filled at freeze from results/n1adp_audit/summary.json (sec. 6.4)
+# sec. 6.4: s_m(q) = max per-unit full-HPO replicate SD over the 4 audit units (results/n1adp_audit/summary_5family.json)
+NOISE = {"lgbm": {"inner_margin_pp": 0.06719696495203807, "phi": 0.0240058088639461, "U": 0.18804550276757762, "MA": 0.17183648558376055}, "mlp": {"inner_margin_pp": 0.061377139753354314, "phi": 0.04198018459459951, "U": 0.3288447793243627, "MA": 0.24041839957032365}}
 NAMES = {"LIMIT": "OUTPUT-DECODER LIMITATION", "ROBUST": "PANEL-ROBUST OUTPUT AMBIGUITY", "SPECIFIC": "FAMILY-SPECIFIC",
          "INC_VALID": "INCONCLUSIVE (validity)", "INC": "INCONCLUSIVE"}
 

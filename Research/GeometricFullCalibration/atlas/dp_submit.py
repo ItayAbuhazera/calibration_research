@@ -56,7 +56,9 @@ def engineering():
 # family -> (split_arms, cpus, mem, time, concurrency)
 G1DP_RES = {"linear": (True, 8, "24G", "08:00:00", 20), "poly2": (True, 8, "32G", "16:00:00", 20), "rff": (True, 8, "24G", "08:00:00", 20),
             "lgbm": (True, 8, "24G", "24:00:00", 20), "mlp": (False, 8, "24G", "06:00:00", 10), "knn": (False, 8, "32G", "02:00:00", 10)}
-N1ADP_RES = {}
+# PROSPECTIVE five-family N1a-DP (DRAFT r4; not authorized): family -> (cpus, mem, time, concurrency); poly2 removed prospectively
+N1ADP_RES = {"linear": (8, "16G", "01:00:00", 20), "rff": (8, "16G", "06:00:00", 20), "lgbm": (8, "16G", "02:00:00", 20),
+             "mlp": (8, "16G", "02:00:00", 20), "knn": (8, "16G", "01:00:00", 20)}
 
 
 def write_manifest(path, rows):
