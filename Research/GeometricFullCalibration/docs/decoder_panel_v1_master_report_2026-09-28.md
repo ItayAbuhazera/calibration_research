@@ -240,3 +240,7 @@ Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f
   researcher's rule, fair-share is not bypassed via GPU nodes.
 - Constraints in force: no partial scientific results inspected; N1a-DP not frozen or run until the complete six-family G1-DP
   aggregation (21726210) is available.
+- 2026-09-29 ~09:40: the 6 h limit enabled backfill — lgbm started ~08:45; 8/110 units complete, 20 running, remainder held only by the
+  array's own %20 throttle (reason JobArrayTaskLimit; `cpu` partition had ~2,370 idle cores). Researcher asked for more parallelism →
+  `scontrol update jobid=21726207 ArrayTaskThrottle=40` (scheduling only; ≤ 320 cores; same command/snapshot/mapping/budget/design).
+  40 tasks running immediately after. Aggregate 21726210 unchanged (afterok all six arrays). No partial results inspected.
