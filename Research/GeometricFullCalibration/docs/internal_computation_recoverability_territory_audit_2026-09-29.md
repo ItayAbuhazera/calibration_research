@@ -516,3 +516,13 @@ Known unverified / residual risks: Corruption Depth (Neural Networks 2024) full 
 subagent from the PDF, not re-verified by the lead; SelfChecker++ (TDSC 2022) not examined; Mehra 2022 venue not found; Vertical Fusion
 and the focal paper are unrefereed and from one group — revisions may add W/H analyses; focal paper App. I.1 ("15 corruption
 families") vs Table O1 ("six corruptions") inconsistency not resolved.
+
+# Appendix — post-audit red-team (2026-09-29; pointer only, no text above changed)
+
+This report was red-teamed the same day: `docs/internal_computation_recoverability_redteam_2026-09-29.md`. Revised verdicts: T1
+WATCH → **KILL** (standalone); T4 WATCH (low) → **KILL**; T2, T5, ordered trajectory KILL and RL CURRENTLY UNJUSTIFIED unchanged; T3
+WATCH (dormant); **POC-T3: DO NOT RUN**; territory CLOSED as a next-stage candidate. Qualifications to this report (red-team §3): E1 order
+evidence is from the transition-continuity analysis, not recognition; E2 Vertical Fusion's 18–76 % recovery rates are clean-only and
+oracle (no CIFAR-100-C recovery rate); E3 Selective Adaptation pools negligible + harmful and targets efficiency; E4 DeepCorrect's clean
+replacement is a filter-ranking definition; E5/E6 wording (Fast yet Safe, KAPPA); E7 the fixed-gate study's pipeline gain over base is
+small and positive, while its internal-over-output increment (Z1 − Z0) is null, which is POC-T3's central contrast.
