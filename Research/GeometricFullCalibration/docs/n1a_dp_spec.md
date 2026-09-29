@@ -1,7 +1,8 @@
-# N1a-DP — Output Decoder Panel action-ambiguity audit (frozen specification v1)
+# N1a-DP — Output Decoder Panel action-ambiguity audit (specification DRAFT r4)
 
-Status: **DRAFT r3 (2026-09-29; researcher revisions after G1-DP; not frozen)** until committed with `n1a_dp_spec.frozen.sha256`, which happens only after the G1-DP report is complete and before any N1a-DP
-fit exists. Instrument: Decoder Panel v1 (`docs/decoder_panel_v1_spec.md`, frozen). Code: `atlas/n1adp.py`, `atlas/n1adp_aggregate.py`,
+Status: **DRAFT r4 (2026-09-29) — NOT FROZEN — NOT AUTHORIZED FOR EXECUTION — N1a-DP PAUSED** pending research-direction selection. No
+frozen sidecar exists; no N1a-DP fit or outcome exists. r4 = r3 with poly2 removed prospectively and the completed five-family audit constants
+filled in (`docs/n1a_dp_prefreeze_methodology_audit_2026-09-29.md`). Instrument: Decoder Panel v1 (`docs/decoder_panel_v1_spec.md`, frozen). Code: `atlas/n1adp.py`, `atlas/n1adp_aggregate.py`,
 `atlas/n1adp_rules.py`. Journal: `docs/decoder_panel_v1_master_report_2026-09-28.md`.
 
 A NEW experiment. **Historical N1a (`docs/n1a_action_ambiguity_spec.md`) remains INCONCLUSIVE — insufficient precision**; nothing here
@@ -39,7 +40,8 @@ enforced (asserted); every (base, f) evaluation covers the 10,000 images × 3 se
 
 ## 4. Decoders and HPO (SHIFT-TRANSFER regime)
 
-All six Decoder Panel v1 families (unanchored 3-class classification), frozen grids/spaces/budgets. HPO regime `shift_transfer`:
+Five Decoder Panel v1 families — **linear, rff, LightGBM, MLP, kNN** — each with its unchanged Decoder Panel v1 definition (unanchored
+3-class classification), frozen grids/spaces/budgets. poly2 is not part of the prospective N1a-DP panel (§4a). HPO regime `shift_transfer`:
 inner model selection = leave-one-TRAINING-family-out: for each of the three training families g, fit rows = the other two training
 families × inner-fit images (Stage-0 `inner_fit_mask`), validation rows = family g × inner-val images (image-disjoint); **selection objective
 = mean over the three inner environments of the negative realized policy utility −mean(Δ · 1[e > 0])** (not AUROC, not NLL). LightGBM / MLP
@@ -47,11 +49,22 @@ early stopping uses each inner split's validation rows (native 3-class log-loss)
 One model per outer unit; no per-severity tuning. The held-out family never enters HPO, early stopping, preprocessing or refit.
 Study seeds from ids {base, heldout, fold, arm = Z}.
 
+## 4a. Panel composition: original audit record vs prospective design
+
+- **A. Original audit record.** The frozen pre-freeze audit protocol (`docs/n1a_dp_stochasticity_audit_plan.md`, sha256 `0b354713…`)
+  specified six families. Its poly2 null-control portion did not complete: "The original six-family N1a-DP pre-freeze audit did not complete
+  for poly2 because its null-control runtime was judged disproportionate to its scientific value for this prospective experiment." This is
+  not a scientific failure of poly2, not evidence that poly2 would not work, and not a reinterpretation of any completed result. The protocol
+  and all completed outputs are unchanged records.
+- **B. Prospective N1a-DP design (this draft).** Created after that resource decision and before any freeze or outcome: five families,
+  structural groups {linear, rff}, {LightGBM}, {MLP}, {kNN}; it uses the completed audit outputs for these five families
+  (`results/n1adp_audit/summary_5family.json`). Decoder Panel v1 and G1-DP, including their poly2 results, are unchanged.
+
 ## 4b. Continuity control (original N1a linear selector) — not a panel family
 
 C0 = the historical N1a output-only selector, reused exactly: its cross-fitted predictions `results/n1a/fits/base{2,4}/<family>/Z/fold{0-4}.npz`
 (snapshot `snapshots/n1a_0c501a1eb60a`; penalized 3-way multinomial logistic, λ ∈ {1e-1..1e-5} by inner-val NLL, image-only inner split) —
-same outer family × image-fold holdout and same F_Z(b). It is re-scored with every §5 quantity and reported beside the six families, but it
+same outer family × image-fold holdout and same F_Z(b). It is re-scored with every §5 quantity and reported beside the five families, but it
 **never counts toward any §7 outcome**. It is already exposed (N1a report). Validity check V-C0: the re-scored family-macro G reproduces the
 historical family-macro G_Z of `results/n1a/report/n1a_aggregate.json` to numerical / serialization tolerance (|Δ| ≤ 1e-9 pp, since the
 identical saved predictions and rows are reused); this checks the new aggregation code, not the science.
@@ -110,19 +123,33 @@ A stochastic family's label that holds only without the margin is **SEED-FRAGILE
 single frozen panel seed per study; audit replicates are never used for selection (no best-of-seed).
 
 ### 6.4 Audited noise scale (filled from the audit before freezing)
-{{AUDIT_VALUES}}
+Source: completed outputs of the frozen audit for the five prospective families (`results/n1adp_audit/summary_5family.json`, produced
+by `atlas/n1adp_audit_report5.py` with the frozen formulas: s = max over the 4 audit units of the per-unit full-HPO replicate SD, no √N
+division; τ = max(0.10 pp, 2 s(I2))). Values also in `atlas/n1adp_rules.py` (`NOISE`).
+
+| family | s(I2 inner margin) pp | τ pp | s(φ) | s(U) pp | s(M_A) pp |
+|---|---|---|---|---|---|
+| LightGBM | 0.0672 | 0.1344 | 0.0240 | 0.1880 | 0.1718 |
+| MLP | 0.0614 | 0.1228 | 0.0420 | 0.3288 | 0.2404 |
+| linear, rff, kNN | 0 | 0.10 | 0 | 0 | 0 |
+
+Effective seed-robust cut-offs: RESOLVED — LightGBM φ_lo ≥ 0.548 and MA_hi ≤ 3.156; MLP φ_lo ≥ 0.584 and MA_hi ≤ 3.019. SUBSTANTIAL —
+LightGBM U_lo ≥ 4.376 and MA_lo ≥ 2.344; MLP U_lo ≥ 4.658 and MA_lo ≥ 2.481. Deterministic families use the unmargined thresholds.
+Shuffled-target null: no family passes I1 and I2 in ≥ 2 of 4 null units (LightGBM 1/4, others 0/4), so the STOP rule does not fire.
+Open items for review before any freeze (report §11): I1 bound permissiveness; MLP final-fit-only SDs exceeding full-HPO SDs (s = max(full,
+fit-only) would give MLP τ = 0.268 pp); five-replicate SD precision; minimum-valid count of 4 of 5.
 
 ## 7. Decision (first matching row)
 
-0. **INCONCLUSIVE (validity)** if fewer than 5 families are valid, V-C0 fails, or any holdout / image / Z_o assertion fails. A family is
-   valid iff, in both bases: all 40 units complete (validated markers), every D1/D2/D6 refit converged, the strongest λ (1e1) was selected
-   in < 2 of 20 units (D1/D2/D6), support ≥ 300 repairs and ≥ 300 harms per (base, held-out family). (Weak-edge λ = 1e-7 is reported, not
+0. **INCONCLUSIVE (validity)** if fewer than 4 of the 5 families are valid (at most one invalid family, the same tolerance as r3's 5 of 6), V-C0 fails, or any holdout / image / Z_o assertion fails. A family is
+   valid iff, in both bases: all 40 units complete (validated markers), every linear/rff refit converged, the strongest λ (1e1) was selected
+   in < 2 of 20 units (linear, rff), support ≥ 300 repairs and ≥ 300 harms per (base, held-out family). (Weak-edge λ = 1e-7 is reported, not
    invalidating: with 72,000 standardized rows it is numerically the unpenalized fit.)
 1. **OUTPUT-DECODER LIMITATION**: ≥ 2 valid families RESOLVED (seed-robust) in both bases that are **structurally distinct**: they must
-   come from different groups of {L2-linear-head: linear, poly2, rff}, {trees: lgbm}, {neural: mlp}, {local: knn}. Two resolving members of
+   come from different groups of {L2-linear-head: linear, rff}, {trees: lgbm}, {neural: mlp}, {local: knn}. Two resolving members of
    the L2-linear-head group alone do not establish this outcome. → the N1a residual was substantially decoder-caused; do NOT proceed to N1b
    on this substrate.
-2. **PANEL-ROBUST OUTPUT AMBIGUITY**: ≥ 4 valid families are INFORMATIVE in both bases; every valid INFORMATIVE family is SUBSTANTIAL
+2. **PANEL-ROBUST OUTPUT AMBIGUITY**: ≥ 4 of the 5 families are valid AND INFORMATIVE in both bases; every valid INFORMATIVE family is SUBSTANTIAL
    (seed-robust) in both bases; no valid family is RESOLVED in either base; M_B ≥ 1.0 in both bases. → residual action ambiguity is not
    explained by the tested decoder families; N1b is scientifically justified **for design only**.
 3. **FAMILY-SPECIFIC**: some valid family RESOLVED (seed-robust) in at least one base but rule 1 does not hold (including resolving
@@ -130,7 +157,7 @@ single frozen panel seed per study; audit replicates are never used for selectio
    output-insufficiency claim; no N1b.
 4. **INCONCLUSIVE**: otherwise (including < 4 informative families, seed-fragile labels, intermediate recoveries, base disagreement). → no N1b.
 
-Always reported: the full six-family vector per base plus C0, each family's informativeness (I1, I2 counts) and seed-robustness; never the
+Always reported: the full five-family vector per base plus C0, each family's informativeness (I1, I2 counts) and seed-robustness; never the
 best family alone.
 
 | outcome | supported / weakened | still unresolved | next decision |
@@ -147,6 +174,6 @@ G1-DP. Decoder Panel v1 (spec, families, grids, budgets) is unchanged, and G1-DP
 
 ## 8. Execution
 
-One Slurm array per family over the 40-unit frozen mapping (`atlas.n1adp fit_index`), CPU, from an immutable snapshot
+**Not authorized.** When authorized: one Slurm array per family (five families) over the 40-unit frozen mapping (`atlas.n1adp fit_index`), CPU, from an immutable snapshot
 (`python -m atlas.snapshot n1adp`); aggregation afterok (`atlas.n1adp_aggregate`, refuses incomplete arrays). Resources: resource plan.
 Engineering recovery allowed; scientific changes after outcomes forbidden.
