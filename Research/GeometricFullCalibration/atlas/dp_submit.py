@@ -89,6 +89,19 @@ def n1adp(snap):
     sb(st, "aggregate", f"{PY} -m atlas.n1adp_aggregate", cwd=snap, deps=fits, cpus=4, mem="64G", hours="06:00:00")
 
 
+def n1adp_audit(snap):
+    """Frozen pre-freeze audit (docs/n1a_dp_stochasticity_audit_plan.md)."""
+    from . import decoder_panel as dp
+    st = "n1adp_audit"; m = f"{PY} -m atlas.n1adp_audit"; jobs = []
+    for fam in ("lgbm", "mlp"):
+        jobs.append(sb(st, f"A_{fam}", f"{m} A --family {fam} --unit $SLURM_ARRAY_TASK_ID", cwd=snap, array="0-3", cpus=8, mem="24G", hours="06:00:00"))
+        jobs.append(sb(st, f"B_{fam}", f"{m} B --family {fam} --unit $SLURM_ARRAY_TASK_ID", cwd=snap, array="0-3", cpus=8, mem="24G", hours="04:00:00"))
+    for fam in dp.FAMILIES:
+        jobs.append(sb(st, f"null_{fam}", f"{m} null --family {fam} --unit $SLURM_ARRAY_TASK_ID", cwd=snap, array="0-3", cpus=8, mem="24G",
+                       hours="06:00:00" if fam == "poly2" else "04:00:00"))
+    sb(st, "summary", f"{m} summary", cwd=snap, deps=jobs, cpus=2, mem="8G", hours="00:30:00")
+
+
 if __name__ == "__main__":
-    fn = {"engineering": engineering, "g1dp": g1dp, "n1adp": n1adp}[sys.argv[1]]
+    fn = {"engineering": engineering, "g1dp": g1dp, "n1adp": n1adp, "n1adp_audit": n1adp_audit}[sys.argv[1]]
     fn(*sys.argv[2:])

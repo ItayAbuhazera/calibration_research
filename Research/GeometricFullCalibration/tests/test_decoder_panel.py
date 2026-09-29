@@ -304,3 +304,25 @@ def test_g1dp_tie_aware_gate():
     pc = np.array([[1.0, 3.0, 3.0], [5.0, 1.0, 0.0], [0.0, 2.0, 1.0]], np.float16)
     pr = np.array([[1.0, 3.0, 3.001], [5.0, 1.0, 0.0], [0.0, 1.0, 2.0]])   # row 0: tie -> consistent; row 2: non-tied disagreement
     assert tie_aware_agreement(pr, pc) == pytest.approx(2 / 3)
+
+
+# N1a-DP pre-freeze audit -----------------------------------------------------------------------------------------------------------------
+def test_n1adp_audit_access_boundary_and_pseudo_unit():
+    from atlas import n1adp_audit as A
+    assert [A.pseudo_family(f) for f in n1a.FAMILIES] == list(n1a.FAMILIES[1:]) + [n1a.FAMILIES[0]]
+    assert sorted({u[1] for u in A.UNITS}) == sorted(n1a.FAMILIES) and sorted(u[2] for u in A.UNITS) == [0, 1, 2, 3]
+    b, f, k = A.UNITS[2]; R = A.training_rows(b, f, k); sp = n1a.split(k, f)
+    assert f not in set(R["env"].tolist()) and not set(R["img"].tolist()) & set(sp["eval_ids"].tolist())
+    tr, ev, splits, g = A.pseudo_unit(R, f)
+    assert g not in set(R["env"][tr].tolist()) and set(R["env"][ev].tolist()) == {g}
+    assert not set(R["img"][tr].tolist()) & set(R["img"][ev].tolist())
+    for fi, vi in splits:
+        assert not set(R["img"][tr][fi].tolist()) & set(R["img"][tr][vi].tolist()) and len(set(R["env"][tr][vi].tolist())) == 1
+
+
+def test_n1adp_audit_spread_emits_no_mean_and_inner_const():
+    from atlas import n1adp_audit as A
+    s = A.spread([1.0, 2.0, 3.0]); assert set(s) == {"sd", "range", "centered", "n"} and abs(sum(s["centered"])) < 1e-12
+    y = np.array([2, 2, 1, 0, 1, 1]); splits = [(np.array([0, 1]), np.array([2, 3])), (np.array([3, 4]), np.array([0, 5]))]
+    # split 1: fit mean Delta = +1 -> route-all -> mean Delta_val = (0 - 1)/2 ; split 2: fit mean = (-1 + 0)/2 < 0 -> keep-all -> 0
+    assert n1adp.inner_const_utility(y, splits) == pytest.approx((-0.5 + 0.0) / 2)

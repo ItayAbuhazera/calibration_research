@@ -1,57 +1,59 @@
-# N1a-DP — stochasticity and sensitivity audit plan (engineering only; DRAFT for researcher review)
+# N1a-DP — pre-freeze stochasticity and sensitivity audit (FROZEN audit protocol)
 
-Purpose: before freezing `docs/n1a_dp_spec.md` (§6.2–6.4), estimate how much the realized N1a-DP metrics of the two stochastic Decoder
-Panel v1 families (LightGBM, MLP) move under changes of algorithmic randomness alone, and check that the informativeness criteria behave
-sensibly. Not a search: replicates are never used to select anything; production N1a-DP uses the single frozen panel seed per study.
-Decoder Panel v1 and G1-DP are not modified.
+Status: **FROZEN (2026-09-29) before execution**, sidecar `n1a_dp_stochasticity_audit_plan.frozen.sha256`. Engineering audit for
+`docs/n1a_dp_spec.md` (§6.2–6.4). Runner: `atlas/n1adp_audit.py` (tests in `tests/test_decoder_panel.py`). Decoder Panel v1 and G1-DP
+are not modified. Researcher instruction of 2026-09-29 (supersedes the earlier synthetic-target draft of this plan).
 
-## 1. What is varied
+## 1. Access boundary (hard; asserted in code and tests)
 
-- **HPO + training seed (primary):** R = 5 replicate audit master seeds (e.g. 910001…910005, never the panel seed 20260928), each
-  running the full frozen shift-transfer procedure (50 Optuna TPE trials, three inner leave-one-training-family-out splits, early stopping,
-  refit, evaluation). Varies TPE sampling, trial seeds and refit seed together.
-- **Training seed only (decomposition):** at the configuration selected in replicate 1, 5 refit-only seeds (no HPO). Separates
-  optimizer/initialization noise from HPO-path noise.
-- Fixed: data, splits, frozen spaces, budget, objective, features, all other code.
+For every audit unit (base b, outer held-out family f, outer fold k) the runner builds ONLY the unit's training rows: the three training
+families × fold-k outer-train images, loading only those cells. No row of family f, no fold-k outer-test image, and no outer held-out label
+or outcome is ever read. Real Δ_route targets are used only on those training rows. Outputs contain **only across-seed variability**
+(SD with ddof = 1, max − min, and deviations from the replicate mean) — never a mean or a per-replicate level of any performance quantity.
 
-## 2. Where (bounded representative subset)
+## 2. Units (preregistered; one per held-out family, balanced across bases and folds)
 
-Two real N1a-DP outer units (real row layout, real F_Z(b) features, real inner splits):
-(a) base 2, held-out fog, fold 0; (b) base 4, held-out jpeg_compression, fold 3 (the other base and the family with the largest N1a
-ambiguity). **Targets are synthetic**, not the real Δ_route: a fixed random teacher on F_Z(b) produces Δ ∈ {−1, 0, +1} with repair / harm
-rates ≈ 9 % / 8 % (as in the existing engineering benchmark, `atlas/dp_engineering.py`, mode n1a). Rationale: running replicates on the
-real targets would expose N1a-DP outcomes (utility, φ, M_A) before the spec is frozen. Limitation: the synthetic signal-to-noise differs
-from the real one, so the audit measures algorithmic variability under matched data geometry, not the real-target variance itself.
-(Alternative for the researcher to choose instead: run the same replicates on real targets but report only the between-seed SDs to the
-spec, keeping means blinded. Not proposed as default because partial blinding is hard to verify.)
+| unit | base | outer held-out family | fold | pseudo-held-out family (cyclic successor) |
+|---|---|---|---|---|
+| u0 | 2 | gaussian_noise | 0 | defocus_blur |
+| u1 | 4 | defocus_blur | 1 | fog |
+| u2 | 2 | fog | 2 | jpeg_compression |
+| u3 | 4 | jpeg_compression | 3 | gaussian_noise |
 
-## 3. Measured per replicate (on the synthetic held-out rows)
+## 3. Procedures (LightGBM and MLP, the stochastic families)
 
-Realized utility G (pp), φ (vs the synthetic headroom), U = G_or − G (pp), M_A (10 score bins), evaluation route rate, selected inner
-objective, inner margin over the inner best-constant policy (I2 quantity), selected hyperparameters, runtime.
+**A — I2 quantity on the real unit.** Production shift-transfer HPO on the unit's training rows (3 inner leave-one-training-family-out
+splits; inner-fit / inner-val images from the Stage-0 mask; objective = negative realized policy utility). Quantity = inner margin (pp) =
+inner utility of the selected configuration − inner best-constant utility (`atlas.n1adp.inner_const_utility`: per split, route-all iff mean
+Δ on the split's fit rows > 0, scored on its validation rows; macro). Exactly the production I2 quantity.
+- 5 full-HPO replicates: audit master seeds 910001…910005 (vary TPE sampling, trial seeds, refit seed).
+- 5 final-fit-only replicates: replicate 0's selected configuration and best iterations, re-trained per split with 5 new seeds.
 
-## 4. Outputs → spec §6.4
+**B — φ, U, M_A on a pseudo-unit inside the training rows.** Pseudo-held-out family g (table above). Pseudo-train = the two other training
+families × inner-fit images; pseudo-eval = g × inner-val images (image-disjoint). Pseudo HPO = shift-transfer with 2 inner splits (each of the
+two pseudo-train families held out once) over a fixed duplicate-group-aware 75/25 sub-split of the inner-fit images (seed 910100).
+Quantities on pseudo-eval, defined exactly as in the spec: φ = (G − G_c)/(G_or − G_c); U = G_or − G (pp); M_A = Σ over 10 quantile bins of the
+decision score of min(repairs, harms) / rows (pp); G (pp) reported for reference.
+- 5 full-HPO replicates (same audit seeds); 5 final-fit-only refits of replicate 0's selection (new refit seeds).
 
-For each of LightGBM and MLP: s_X = standard deviation over the 5 HPO replicates of each metric X ∈ {G, φ, U, M_A, inner margin}, taken as
-the maximum over the two units, converted to the family-macro scale by dividing unit-level SDs by √4 (family-macro averages four held-out
-families; conservative alternative √1 if replicate correlations across units cannot be assumed away — **proposed: use the unit-level SD
-without division, i.e. conservative**). Also reported: the refit-only SDs and the fraction of variance attributable to HPO path.
-These values are written into `n1a_dp_spec.md` §6.4 and determine τ (I2) and the seed-robust margins (§6.3).
+## 4. Noise scales and derived constants (computed by `python -m atlas.n1adp_audit summary`)
 
-Sanity checks on informativeness (engineering): I1/I2 evaluated on the synthetic units for all six families (single frozen seed) to
-confirm the criteria are neither trivially satisfied nor trivially failed when real (synthetic) signal exists; plus one **null-target
-control** (Δ permuted within inner environments) where every family should come out NON-INFORMATIVE by I2.
+For each stochastic family m and each threshold-driving quantity q ∈ {inner margin, φ, U, M_A}:
+**s_m(q) = the maximum over the four audit units of the per-unit full-HPO replicate SD** (conservative; no division by √(number of held-out
+families) or √(units)). τ_m = max(0.10 pp, 2 · s_m(inner margin)). Deterministic families (linear, poly2, knn, rff): s = 0, τ = 0.10 pp.
+Final-fit-only SDs are reported to decompose HPO-path vs training noise; they are not used for thresholds.
+Known conservatism: pseudo-units train on ~half the rows of production units and evaluate on one family × one-quarter of the images, and
+production quantities average 20 independently fitted units; the per-unit SD therefore overstates the family-macro seed SD.
 
-## 5. Cost and execution
+## 5. Shuffled-target null (all six families)
 
-LightGBM ≈ 17 min and MLP ≈ 19 min per full N1a-scale study on 8 cores (Stage-B benchmark). 2 units × 2 families × (5 HPO + 5 refit-only)
-plus 6 families × 2 units (informativeness check) plus the null control ≈ 60 short jobs ≈ 60 core-hours, < 1 h elapsed. `cpu` partition,
-8 cores, 16G, 2 h limits, array throttle %20. Outputs `results/n1adp_audit/` (engineering), journal entries in the master report.
+Per audit unit: Δ permuted within each training environment (seed 910200 + unit); production procedure with the frozen panel seed on the
+unit's training rows. I2 = inner margin ≥ τ_m; I1 = route rate of the refitted selector on the pseudo-eval rows' features (label-free proxy
+for the production evaluation route rate) within [1 %, 99 %]. **STOP rule: if any family passes I1 and I2 in ≥ 2 of the 4 null units, STOP
+and revise the informativeness criterion before freezing N1a-DP** (stricter than the full 16/20 criterion scaled to 4 units).
 
-## 6. Implementation needed before the audit (small, tested)
+## 6. Execution
 
-1. `atlas/n1adp.py`: store per unit the evaluation route rate and the inner best-constant objective (for I1/I2).
-2. `atlas/n1adp_aggregate.py`: informativeness (I1/I2), seed-robust labels, continuity control C0 (re-score `results/n1a/fits/*/Z`),
-   V-C0 reproduction check; decision per revised §7.
-3. `atlas/n1adp_rules.py`: revised pure decision function + tests.
-4. `atlas/dp_engineering.py`: `--mode n1a_seed` replicate runner (audit master seed override, second unit, null-target control).
+`cpu` partition, 8 cores / 24G: A jobs (8) 6 h limit, B jobs (8) 4 h, null jobs (24) 6 h for poly2 and 4 h otherwise, all from an
+immutable snapshot `snapshots/n1adp_audit_*`; summary afterok all. Outputs `results/n1adp_audit/{A,B,null}/<family>/u<k>.json`,
+`results/n1adp_audit/summary.json`; logs `results/n1adp_audit/logs/`. ≈ 150–200 core-hours.

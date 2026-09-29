@@ -269,3 +269,13 @@ Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f
   uninformative for B−C/D−C.
 - Report `docs/g1_decoder_panel_audit_2026-09-28.md` to be written next; N1a-DP go/no-go pending researcher decision (see report).
 - 2026-09-29: G1-DP report committed (`docs/g1_decoder_panel_audit_2026-09-28.md`, 559f247). Researcher: do NOT freeze/submit N1a-DP yet; revise draft first. Draft r2 of `docs/n1a_dp_spec.md` (continuity control C0 = historical N1a selector outputs; informativeness I1/I2; seed-robust labels from a stochasticity audit) and `docs/n1a_dp_stochasticity_audit_plan.md` committed as DRAFTS for researcher review; nothing frozen or submitted.
+
+## N1a-DP pre-freeze audit (researcher instruction 2026-09-29)
+
+- Frozen audit protocol `docs/n1a_dp_stochasticity_audit_plan.md` (sha256 `0b35471336766c00038a3110673c7a271b68a1c5d97f437d968b5d617216c36b`),
+  runner `atlas/n1adp_audit.py`. Real Δ targets on the units' TRAINING environments only (outer held-out family and outer-test images never
+  built); outputs are across-seed variability only. 4 units (u0 b2/gaussian/f0, u1 b4/defocus/f1, u2 b2/fog/f2, u3 b4/jpeg/f3);
+  lgbm + mlp × {A real-unit I2 margin, B pseudo-unit φ/U/M_A} × (5 full-HPO + 5 final-fit-only); shuffled-target null for all six families.
+  STOP if any family passes I1 and I2 in ≥ 2 of 4 null units.
+- Production `atlas/n1adp.py` now records the I2 inputs (inner selected utility, inner best-constant utility, margin, evaluation route rate).
+- N1a-DP spec remains an unfrozen DRAFT; not submitted.

@@ -28,6 +28,14 @@ def neg_policy_utility(pred, y, _rows=None):
     return -float(np.mean((np.asarray(y) - 1) * ((p[:, 2] - p[:, 0]) > 0)))
 
 
+def inner_const_utility(y, splits):
+    """I2 reference (docs/n1a_dp_spec.md sec. 6.2): per inner split, the best-constant policy chosen on that split's FIT rows (route-all iff
+    mean Delta_fit > 0, else keep-all), scored on its VALIDATION rows with the model-selection quantity (mean Delta * 1[route]);
+    macro over splits. Training labels only. Returns a utility (fraction; higher is better)."""
+    d = np.asarray(y) - 1
+    return float(np.mean([d[vi].mean() if d[fi].mean() > 0 else 0.0 for fi, vi in splits]))
+
+
 def family_of(cell):
     return cell.rsplit("_s", 1)[0]
 
@@ -87,6 +95,10 @@ def run(family, base, heldout, fold, device="cpu", force=False):
            "zstd_eval": stage0_fit.standardize_apply(zb_ev, mu, sd).astype(np.float32), "train_mean_delta": float((U["y"] - 1).mean()),
            "n_train_rows": len(U["y"]), "n_eval_rows": len(U["De"]), "wall_time_s": time.time() - t0}
     rec["host"] = os.uname().nodename; rec["cpus"] = dp.n_threads()
+    rec["inner_selected_utility"] = -float(rec["selected_objective"])          # same quantity as model selection (macro inner utility)
+    rec["inner_const_utility"] = inner_const_utility(U["y"], U["splits"])
+    rec["inner_margin_pp"] = 100 * (rec["inner_selected_utility"] - rec["inner_const_utility"])
+    out["eval_route_rate"] = float((out["e"] > 0).mean()); out["inner_margin_pp"] = rec["inner_margin_pp"]
     p = out_paths(family, base, heldout, fold); os.makedirs(p["dir"], exist_ok=True)
     np.savez(p["npz"] + ".tmp.npz", **out); os.replace(p["npz"] + ".tmp.npz", p["npz"])
     dp.save_record(p["study"], rec)
