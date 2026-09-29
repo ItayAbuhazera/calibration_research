@@ -205,3 +205,8 @@ Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f
   test-set accuracy or contrast was computed, and nothing is decided from partial results (spec §5: aggregation only after all arrays).
 - Monitoring 2026-09-29 ~01:15: arm-units complete — linear 93/110, poly2 22/110, rff 26/110, mlp 110/110 (10/10 tasks), knn 110/110 (10/10 tasks), lgbm 0/110 (array 21726207 still pending on Priority); aggregate 21726210 pending. No Traceback/Error/OOM/TIMEOUT in any fit log; no resubmission needed.
 - Monitoring 2026-09-29 ~02:20: linear 110/110 COMPLETED; rff 77/110; poly2 56/110; mlp/knn complete; lgbm 21726207 still PENDING (Priority) — if still pending at the next check, consider an engineering-only resubmission of the same array with a shorter limit (e.g. 12 h; per-arm units are restart-safe). No errors; no resubmission.
+- Monitoring 2026-09-29 ~03:20: rff 110/110 COMPLETED; poly2 88/110 (20 running); linear/mlp/knn complete; lgbm 21726207 still fully
+  PENDING (Priority) after ~3.5 h. `sbatch --test-only` (cpu, 8 cores, 24G) start estimates: 24 h limit → 2026-10-01 05:00;
+  12 h or 8 h limit → 2026-09-30 23:15. A shorter limit gains only ~6 h (estimates are coarse) while risking timeouts on the
+  3,172-d arms; the bottleneck is fair-share priority on a busy cluster. **Decision: keep 21726207 as submitted (no churn).**
+  Expect G1-DP completion ~1–2 days out, dominated by lgbm. No errors; no resubmission.
