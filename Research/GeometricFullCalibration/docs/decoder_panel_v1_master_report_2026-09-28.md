@@ -211,3 +211,16 @@ Amendment 1 frozen: `docs/g1_dp_spec_amendment_1.md`, sha256 `6e3930cb04f78a0e0f
   3,172-d arms; the bottleneck is fair-share priority on a busy cluster. **Decision: keep 21726207 as submitted (no churn).**
   Expect G1-DP completion ~1–2 days out, dominated by lgbm. No errors; no resubmission.
 - Monitoring 2026-09-29 ~04:20: poly2 108/110 (2 running); linear/rff/mlp/knn complete; lgbm 21726207 still fully PENDING (Priority); aggregate pending. No errors; no resubmission.
+- Monitoring 2026-09-29 ~05:20: **five of six families COMPLETE** — linear, poly2, rff, mlp, knn (110/110 arm-units each; no failures,
+  no resubmissions). lgbm 21726207 (110 tasks, %20, 8 cpu / 24G / 24 h) still fully PENDING (Priority); aggregate 21726210 pending
+  (afterok all six). Interactive session job ends ~06:45; nothing depends on it.
+
+### HANDOFF (current, supersedes earlier HANDOFF for the G1-DP stage)
+1. `sacct -j 21726207,21726210 -o JobID,JobName%20,State,Elapsed,MaxRSS` — wait for lgbm; grep `results/g1dp/logs/fit_lgbm_*` for
+   Traceback/oom/"DUE TO TIME". Failed/timed-out indices: resubmit ONLY those indices from `snapshots/g1dp_a1_5f363f77476c`
+   (`atlas.dp_submit.sb("g1dp", "fit_lgbm_retry", "<PY> -m atlas.g1dp fit_index --family lgbm --index $SLURM_ARRAY_TASK_ID --split_arms",
+   cwd=<snapshot>, array="<idx list>", cpus=8, mem="24G", hours="24:00:00")`; mapping: `results/g1dp/array_manifest_lgbm.json`), then
+   cancel 21726210 if its dependency can no longer be satisfied and resubmit aggregation afterok the retry.
+2. When 21726210 completes: read `results/g1dp/report/g1dp_aggregate.json` + `g1dp_table.md`; write `docs/g1_decoder_panel_audit_2026-09-28.md`
+   (prompt §45 structure; verdicts exactly per frozen rules + Amendment 1); experiment card in ResearchBrain/05_Experiments; update this report.
+3. Then N1a-DP: finish `N1ADP_RES` in `atlas/dp_submit.py` from the resource plan, freeze `docs/n1a_dp_spec.md` (+ sidecar), snapshot, submit.
