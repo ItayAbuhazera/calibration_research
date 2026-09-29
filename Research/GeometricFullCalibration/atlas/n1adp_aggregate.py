@@ -10,7 +10,7 @@ import numpy as np
 
 from . import decoder_panel as dp, n1a, n1adp, spec
 from .n1a_aggregate import knn_ambiguity
-from .n1adp_rules import decide
+from . import n1adp_rules as rules
 from .stage0_aggregate import BOOT_SEED, group_id_for_bootstrap
 
 REPORT = "results/n1adp/report"
@@ -18,9 +18,19 @@ B = 2000
 NBIN = 10
 
 
+C0_FITS = "results/n1a/fits"
+N1A_REPORT = "results/n1a/report/n1a_aggregate.json"
+
+
 def pool(family, base, heldout):
     xs = []
-    for k in range(5):
+    if family == "C0":                  # continuity control: historical N1a selector outputs, reused exactly (spec sec. 4b)
+        for k in range(5):
+            x = np.load(f"{C0_FITS}/base{base}/{heldout}/Z/fold{k}.npz", allow_pickle=True)
+            xs.append((dict(x, eval_route_rate=float((x["e"] > 0).mean()), inner_margin_pp=np.nan),
+                       {"selected": {"lambda": float(x["selected_lambda"])}, "selected_objective": np.nan, "hpo_seconds": 0.0,
+                        "refit_meta": {"converged": bool(x["converged"])}}))
+    for k in range(5 if family != "C0" else 0):
         if not n1adp.is_complete(family, base, heldout, k):
             raise SystemExit(f"incomplete: {family} base{base} {heldout} fold{k} — refusing to aggregate")
         p = n1adp.out_paths(family, base, heldout, k); xs.append((np.load(p["npz"], allow_pickle=True), json.load(open(p["study"]))))
@@ -31,7 +41,8 @@ def pool(family, base, heldout):
     o = np.lexsort((P["cell"], P["img"]))
     P = {k: v[o] for k, v in P.items()}
     meta = [{"fold": k, "selected": st["selected"], "selected_inner_objective": st["selected_objective"], "grid_edge": st.get("grid_edge"),
-             "converged": st.get("refit_meta", {}).get("converged", True), "hpo_min": st["hpo_seconds"] / 60} for k, (_, st) in enumerate(xs)]
+             "converged": st.get("refit_meta", {}).get("converged", True), "hpo_min": st["hpo_seconds"] / 60,
+             "eval_route_rate": float(x["eval_route_rate"]), "inner_margin_pp": float(x["inner_margin_pp"])} for k, (x, st) in enumerate(xs)]
     return P, meta
 
 
@@ -41,7 +52,8 @@ def main():
     res = {"label": "N1a-DP development audit on exposed cells; Decoder Panel v1 output-only selectors (F_Z(b), 206 features); shift-transfer "
                     "HPO (inner leave-one-training-family-out, objective = realized policy utility); family + image-identity holdout; "
                     "95% image-group bootstrap (one resample array per base shared by all families)", "bases": {}}
-    per = {f: {} for f in dp.FAMILIES}; MB = {}; validity = {f: {} for f in dp.FAMILIES}
+    FAMS = tuple(dp.FAMILIES) + ("C0",)
+    per = {f: {} for f in FAMS}; MB = {}; validity = {f: {} for f in dp.FAMILIES}; info = {f: {} for f in dp.FAMILIES}; unit_pass = {}
     for base in n1a.BASES:
         rng = np.random.default_rng(BOOT_SEED + 70000 + base); idx = rng.integers(0, ng, (B, ng))
         R = np.zeros((B, ng), np.float32)
@@ -49,7 +61,7 @@ def main():
             R[bi] = np.bincount(idx[bi], minlength=ng)
         base_out = {"families": {}}; mb_boot = np.zeros((B, len(n1a.FAMILIES))); mb_pt = []
         ref = {}
-        for fam in dp.FAMILIES:
+        for fam in FAMS:
             boot = {k: np.zeros((B, len(n1a.FAMILIES))) for k in ("G", "h", "Gc", "MA", "U")}
             fs, conv, metas = {}, True, {}
             for hi, ho in enumerate(n1a.FAMILIES):
@@ -99,15 +111,23 @@ def main():
                  "calibration_error_pp": pt("calibration_error_pp"), "converged": bool(conv),
                  "support_ok": all(fs[h]["support_repair"] >= 300 and fs[h]["support_harm"] >= 300 for h in n1a.FAMILIES)}
             per[fam][base] = q
+            if fam == "C0":
+                base_out["C0_continuity_control"] = {"family_macro": q, "by_heldout_family": fs}; continue
+            up = {h: [rules.unit_passes(m["eval_route_rate"], m["inner_margin_pp"], fam) for m in metas[h]] for h in n1a.FAMILIES}
+            info[fam][base] = rules.informative(up); unit_pass[(fam, base)] = up
             validity[fam][base] = {"complete": True, "converged": bool(conv), "support": q["support_ok"]}
             if fam in ("linear", "poly2", "rff"):
                 validity[fam][base]["no_strong_edge"] = sum(m["selected"].get("lambda") == dp.LAMBDA_GRID[0] for h in n1a.FAMILIES for m in metas[h]) < 2
-            base_out["families"][fam] = {"family_macro": q, "by_heldout_family": fs, "validity": validity[fam][base]}
+            base_out["families"][fam] = {"family_macro": q, "by_heldout_family": fs, "validity": validity[fam][base],
+                                         "informative": info[fam][base], "unit_pass_I1_I2": up, "tau_pp": rules.tau(fam)}
         MB[base] = float(np.mean(mb_pt)); base_out["MB_local_Z"] = MB[base]; base_out["MB_ci"] = [100 * float(np.quantile(mb_boot.mean(1), q)) for q in (.025, .975)]
         res["bases"][str(base)] = base_out
     valid = {f for f in dp.FAMILIES if all(all(v.values()) for v in validity[f].values())}
     res["valid_families"] = sorted(valid)
-    res["decision"] = decide(per, MB, valid)
+    hist = json.load(open(N1A_REPORT))["bases"]
+    vc0 = {b: abs(per["C0"][b]["G"] - hist[str(b)]["family_macro"]["G_Z"]) for b in n1a.BASES}
+    res["V_C0"] = {"abs_diff_pp": vc0, "tolerance_pp": 1e-9, "passed": all(v <= 1e-9 for v in vc0.values())}
+    res["decision"] = rules.decide({f: per[f] for f in dp.FAMILIES}, MB, valid, info, validity_extra_ok=res["V_C0"]["passed"])
     res["historical_reference"] = {"N1a_G_Z_pp": {"2": 2.03, "4": 1.25}, "N1a_MA_pp": {"2": 7.12, "4": 6.91}, "N1a_MB_pp": {"2": 3.51, "4": 3.44},
                                    "N1a_Q_Zother_reference_pp": {"2": 0.54, "4": 0.41}, "note": "reference only; Z_other is not admissible pre-action evidence"}
     json.dump(res, open(f"{REPORT}/n1adp_aggregate.json", "w"), indent=1, default=float)
@@ -117,11 +137,11 @@ def main():
         L += [f"### Base {base} -> {n1a.other(base)} (family-macro; M_B local-Z = {MB[base]:.2f} pp)", "",
               "| family | G (pp) | gain over best fixed | phi recovered | U unrecovered (pp) | M_A (pp) | repair capture | harmful routing (pp) | calib. err (pp) | label |",
               "|---|---|---|---|---|---|---|---|---|---|"]
-        for fam in dp.FAMILIES:
+        for fam in FAMS:
             q = per[fam][base]
             L.append(f"| {fam} | {f2(q['G'], q['G_ci'])} | {q['gain_over_best_fixed']:.2f} | {f2(q['phi'], q['phi_ci'])} | {f2(q['U'], q['U_ci'])} | "
                      f"{f2(q['MA'], q['MA_ci'])} | {q['repair_capture']:.3f} | {q['harmful_routing_rate']:.2f} | {q['calibration_error_pp']:.2f} | "
-                     f"{res['decision']['labels'][fam][base]} |")
+                     f"{res['decision']['labels'][fam][base] if fam != 'C0' else 'continuity control'} |")
         L.append("")
     L.append("Decision: " + json.dumps({k: v for k, v in res["decision"].items() if k != "labels"}))
     open(f"{REPORT}/n1adp_table.md", "w").write("\n".join(L)); print("\n".join(L))

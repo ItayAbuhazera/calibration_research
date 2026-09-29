@@ -259,18 +259,35 @@ def test_g1dp_classify_and_verdict():
 
 def test_n1adp_decision_rule():
     from atlas import n1adp_rules as R
-    res = {"phi": .6, "phi_ci": (.55, .65), "U": 3, "U_ci": (2.5, 3.5), "MA": 2, "MA_ci": (1.5, 2.5)}
-    sub = {"phi": .15, "phi_ci": (.1, .2), "U": 7, "U_ci": (6.5, 7.5), "MA": 7, "MA_ci": (6.8, 7.2)}
-    mid = {"phi": .4, "phi_ci": (.35, .45), "U": 5, "U_ci": (4.6, 5.4), "MA": 3, "MA_ci": (1.5, 4)}
+    T = {"lgbm": {"phi": 0.02, "U": 0.3, "MA": 0.2, "inner_margin_pp": 0.1}, "mlp": {"phi": 0.02, "U": 0.3, "MA": 0.2, "inner_margin_pp": 0.02}}
+    res = {"phi_ci": (.60, .70), "U_ci": (2.5, 3.5), "MA_ci": (1.5, 2.5)}
+    sub = {"phi_ci": (.10, .20), "U_ci": (6.5, 7.5), "MA_ci": (6.8, 7.2)}
+    mid = {"phi_ci": (.35, .45), "U_ci": (4.6, 5.4), "MA_ci": (1.5, 4.0)}
     fams = dp.FAMILIES; allv = set(fams); MB = {2: 3.5, 4: 3.4}
     mk = lambda d: {f: {2: d[f], 4: d[f]} for f in fams}  # noqa: E731
-    assert R.decide(mk({f: sub for f in fams}), MB, allv)["outcome"] == "ROBUST"
-    assert R.decide(mk({f: sub for f in fams}), {2: 0.5, 4: 3.4}, allv)["outcome"] == "INC"
-    assert R.decide(mk({f: (res if f in ("lgbm", "mlp") else sub) for f in fams}), MB, allv)["outcome"] == "LIMIT"
-    assert R.decide(mk({f: (res if f == "lgbm" else sub) for f in fams}), MB, allv)["outcome"] == "SPECIFIC"
-    assert R.decide(mk({f: (mid if f == "lgbm" else sub) for f in fams}), MB, allv)["outcome"] == "INC"
-    assert R.decide(mk({f: sub for f in fams}), MB, set(fams[:4]))["outcome"] == "INC_VALID"
-
+    inf = lambda ok: {f: {2: ok(f), 4: ok(f)} for f in fams}  # noqa: E731
+    yes = inf(lambda f: True)
+    assert R.decide(mk({f: sub for f in fams}), MB, allv, yes, table=T)["outcome"] == "ROBUST"
+    assert R.decide(mk({f: sub for f in fams}), {2: 0.5, 4: 3.4}, allv, yes, table=T)["outcome"] == "INC"
+    # structurally distinct resolvers required: two l2-head families alone -> not LIMIT
+    assert R.decide(mk({f: (res if f in ("linear", "poly2") else sub) for f in fams}), MB, allv, yes, table=T)["outcome"] == "SPECIFIC"
+    assert R.decide(mk({f: (res if f in ("linear", "lgbm") else sub) for f in fams}), MB, allv, yes, table=T)["outcome"] == "LIMIT"
+    assert R.decide(mk({f: (mid if f == "lgbm" else sub) for f in fams}), MB, allv, yes, table=T)["outcome"] == "INC"
+    assert R.decide(mk({f: sub for f in fams}), MB, set(fams[:4]), yes, table=T)["outcome"] == "INC_VALID"
+    # non-informative families cannot support ROBUST: only 3 informative -> INC
+    three = inf(lambda f: f in ("linear", "lgbm", "mlp"))
+    assert R.decide(mk({f: sub for f in fams}), MB, allv, three, table=T)["outcome"] == "INC"
+    # seed margin on the exact metric: phi_lo 0.52 passes for deterministic linear, fails for lgbm (0.52 - 0.04 < 0.5)
+    edge = {"phi_ci": (.52, .60), "U_ci": (3.0, 3.5), "MA_ci": (1.0, 3.0)}
+    assert R.label(edge, "linear", T) == "RESOLVED" and R.label(edge, "lgbm", T) == "INTERMEDIATE"
+    assert R.tau("lgbm", T) == pytest.approx(0.2) and R.tau("mlp", T) == pytest.approx(0.10) and R.tau("knn", T) == 0.10
+    assert R.unit_passes(0.5, 0.25, "lgbm", T) and not R.unit_passes(0.5, 0.15, "lgbm", T) and not R.unit_passes(0.995, 1.0, "linear", T)
+    ok = {h: [True] * 5 for h in n1a.FAMILIES}
+    assert R.informative(ok)
+    bad = dict(ok); bad["fog"] = [True, True, False, False, False]      # 17/20 overall but only 2/5 folds in fog
+    assert not R.informative(bad)
+    few = {h: [True, True, True, True, False] for h in n1a.FAMILIES}    # 16/20, 4/5 each
+    assert R.informative(few)
 
 def test_g1dp_task_end_to_end_with_fake_bundle(tmp_path, monkeypatch):
     """Fake on-disk bundle -> stage to scratch (sha256 verified) -> fit two arms incl. a shuffled control -> atomic outputs -> restart skip."""

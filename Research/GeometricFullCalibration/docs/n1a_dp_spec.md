@@ -1,6 +1,6 @@
 # N1a-DP — Output Decoder Panel action-ambiguity audit (frozen specification v1)
 
-Status: **DRAFT r2 (2026-09-29, revised after G1-DP; not frozen)** until committed with `n1a_dp_spec.frozen.sha256`, which happens only after the G1-DP report is complete and before any N1a-DP
+Status: **DRAFT r3 (2026-09-29; researcher revisions after G1-DP; not frozen)** until committed with `n1a_dp_spec.frozen.sha256`, which happens only after the G1-DP report is complete and before any N1a-DP
 fit exists. Instrument: Decoder Panel v1 (`docs/decoder_panel_v1_spec.md`, frozen). Code: `atlas/n1adp.py`, `atlas/n1adp_aggregate.py`,
 `atlas/n1adp_rules.py`. Journal: `docs/decoder_panel_v1_master_report_2026-09-28.md`.
 
@@ -53,7 +53,8 @@ C0 = the historical N1a output-only selector, reused exactly: its cross-fitted p
 (snapshot `snapshots/n1a_0c501a1eb60a`; penalized 3-way multinomial logistic, λ ∈ {1e-1..1e-5} by inner-val NLL, image-only inner split) —
 same outer family × image-fold holdout and same F_Z(b). It is re-scored with every §5 quantity and reported beside the six families, but it
 **never counts toward any §7 outcome**. It is already exposed (N1a report). Validity check V-C0: the re-scored family-macro G reproduces the
-historical G_Z (2.03 / 1.25 pp) within ±0.01 pp (checks the new aggregation code, not the science).
+historical family-macro G_Z of `results/n1a/report/n1a_aggregate.json` to numerical / serialization tolerance (|Δ| ≤ 1e-9 pp, since the
+identical saved predictions and rows are reused); this checks the new aggregation code, not the science.
 
 ## 5. Quantities (per family m, per base; per held-out family = pooled over folds and severities; family-macro = mean over 4 held-out families)
 
@@ -84,23 +85,29 @@ nothing while still counting as a valid family)
 A family that effectively implements a constant policy cannot be evidence that the output channel lacks usable action information.
 Per family m and base b, over its 20 outer units (4 held-out families × 5 folds), using only training-side quantities and label-free
 evaluation decisions (no evaluation labels):
-- **I1 non-degenerate decisions:** the refitted selector's evaluation route rate lies in [1 %, 99 %] in ≥ 16 of 20 units.
-- **I2 inner sensitivity:** the selected configuration's inner-validation utility exceeds that of the inner best-constant policy by
-  ≥ τ in ≥ 16 of 20 units. Inner best-constant policy: on each inner split, route-all if mean Δ on that split's fit rows > 0, else keep-all,
+- **I1 non-degenerate decisions:** the refitted selector's evaluation route rate (fraction of evaluation rows with e > 0; label-free) lies
+  in [1 %, 99 %].
+- **I2 inner sensitivity:** the inner margin — the selected configuration's inner-validation realized policy utility (exactly the
+  model-selection quantity: macro over the three inner splits of mean Δ · 1[route], route iff P(+1) − P(−1) > 0) minus that of the inner
+  best-constant policy — is ≥ τ_m. Inner best-constant policy: on each inner split, route-all if mean Δ on that split's fit rows > 0, else keep-all,
   scored on that split's validation rows; macro over the three inner splits (same rows as model selection; training labels only).
-  τ = max(0.10 pp, 2 · s_inner(m)), with s_inner from the stochasticity audit (§6.3); for deterministic families s_inner = 0.
-- m is **INFORMATIVE for b** iff I1 and I2; otherwise **NON-INFORMATIVE**. NON-INFORMATIVE families are reported in full but cannot count
+  τ_m = max(0.10 pp, 2 · s_m(inner margin)) (family-specific; §6.4); deterministic families τ = 0.10 pp. The [1 %, 99 %] bound is kept
+  unless the shuffled-target audit shows it is too permissive.
+- A unit passes iff I1 and I2 both hold. m is **INFORMATIVE for b** iff passing units number ≥ 16 of 20 overall AND ≥ 3 of 5 folds
+  within every one of the four held-out corruption families; otherwise **NON-INFORMATIVE**. NON-INFORMATIVE families are reported in full but cannot count
   toward PANEL-ROBUST OUTPUT AMBIGUITY (§7 rule 2). Informativeness does not use evaluation outcomes, so it cannot be tuned to the verdict.
 
-### 6.3 Stochasticity (new)
-LightGBM and MLP are stochastic given data (trial seeds, bagging/feature sampling, initialization, mini-batch order); the other four
-families are deterministic given data and their fixed panel seeds. Before freezing, an engineering-only audit
-(`docs/n1a_dp_stochasticity_audit_plan.md`; synthetic targets; no N1a-DP outcome) estimates per-family seed standard deviations
-s_G, s_φ, s_U, s_MA, s_inner (family-macro scale). They are recorded in this spec at freeze (§6.4) and used as follows:
-- **Seed-robust labels:** for m ∈ {lgbm, mlp}, RESOLVED requires φ_lo − 2 s_φ ≥ 0.50 and MA_hi + 2 s_MA ≤ 3.5; SUBSTANTIAL requires
-  U_lo − 2 s_U ≥ 4.0 and MA_lo − 2 s_MA ≥ 2.0. A label that holds only without the margin is **SEED-FRAGILE** and is treated as
-  INTERMEDIATE. (Deterministic families: s = 0.)
-- The production run uses the single frozen panel seed per study; audit replicates are never used for selection (no best-of-seed).
+### 6.3 Stochasticity
+LightGBM and MLP are stochastic given data (trial seeds, feature/bagging sampling, initialization, mini-batch order); the other four families
+are deterministic given data and their fixed panel seeds (s = 0). The frozen pre-freeze audit (`docs/n1a_dp_stochasticity_audit_plan.md`;
+real Δ targets on training environments only; variability-only outputs) gives, per stochastic family m and threshold-driving quantity q,
+s_m(q) = the maximum over its four audit units of the per-unit full-HPO replicate SD (no √ division). The 2·s margin is applied to the exact
+metric that determines each label:
+- **RESOLVED (seed-robust):** φ_lo − 2 s_m(φ) ≥ 0.50 AND MA_hi + 2 s_m(M_A) ≤ 3.5 pp.
+- **SUBSTANTIAL (seed-robust):** U_lo − 2 s_m(U) ≥ 4.0 pp AND MA_lo − 2 s_m(M_A) ≥ 2.0 pp.
+- **I2:** τ_m = max(0.10 pp, 2 s_m(inner margin)).
+A stochastic family's label that holds only without the margin is **SEED-FRAGILE** and is treated as INTERMEDIATE. The production run uses the
+single frozen panel seed per study; audit replicates are never used for selection (no best-of-seed).
 
 ### 6.4 Audited noise scale (filled from the audit before freezing)
 {{AUDIT_VALUES}}
@@ -111,12 +118,15 @@ s_G, s_φ, s_U, s_MA, s_inner (family-macro scale). They are recorded in this sp
    valid iff, in both bases: all 40 units complete (validated markers), every D1/D2/D6 refit converged, the strongest λ (1e1) was selected
    in < 2 of 20 units (D1/D2/D6), support ≥ 300 repairs and ≥ 300 harms per (base, held-out family). (Weak-edge λ = 1e-7 is reported, not
    invalidating: with 72,000 standardized rows it is numerically the unpenalized fit.)
-1. **OUTPUT-DECODER LIMITATION**: ≥ 2 valid families RESOLVED (seed-robust) in both bases. → the N1a residual was substantially decoder-
-   caused; do NOT proceed to N1b on this substrate.
+1. **OUTPUT-DECODER LIMITATION**: ≥ 2 valid families RESOLVED (seed-robust) in both bases that are **structurally distinct**: they must
+   come from different groups of {L2-linear-head: linear, poly2, rff}, {trees: lgbm}, {neural: mlp}, {local: knn}. Two resolving members of
+   the L2-linear-head group alone do not establish this outcome. → the N1a residual was substantially decoder-caused; do NOT proceed to N1b
+   on this substrate.
 2. **PANEL-ROBUST OUTPUT AMBIGUITY**: ≥ 4 valid families are INFORMATIVE in both bases; every valid INFORMATIVE family is SUBSTANTIAL
    (seed-robust) in both bases; no valid family is RESOLVED in either base; M_B ≥ 1.0 in both bases. → residual action ambiguity is not
    explained by the tested decoder families; N1b is scientifically justified **for design only**.
-3. **FAMILY-SPECIFIC**: some valid family RESOLVED in at least one base but rule 1 does not hold. → decoder-sensitive measurement; no broad
+3. **FAMILY-SPECIFIC**: some valid family RESOLVED (seed-robust) in at least one base but rule 1 does not hold (including resolving
+   families that all belong to one structural group). → decoder-sensitive measurement; no broad
    output-insufficiency claim; no N1b.
 4. **INCONCLUSIVE**: otherwise (including < 4 informative families, seed-fragile labels, intermediate recoveries, base disagreement). → no N1b.
 

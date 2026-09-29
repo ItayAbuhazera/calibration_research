@@ -1,37 +1,72 @@
-"""Frozen N1a-DP decision (docs/n1a_dp_spec.md sec. 6-7) as a pure function. Inputs in pp (phi as a fraction).
+"""Frozen N1a-DP decision (docs/n1a_dp_spec.md sec. 6-7, draft r3) as pure functions. Inputs in pp (phi as a fraction).
 
-per[family][base] = {"phi": x, "phi_ci": (lo, hi), "U": x, "U_ci": (lo, hi), "MA": x, "MA_ci": (lo, hi)}
-MB[base] = family-independent local-Z ambiguity (pp); valid = set of valid families.
+per[family][base] = {"phi_ci": (lo, hi), "U_ci": (lo, hi), "MA_ci": (lo, hi), ...}
+informative[family][base] = bool (I1/I2 rule, sec. 6.2); MB[base] = local-Z ambiguity (pp); valid = set of valid families.
+NOISE[family] = {"phi": s, "U": s, "MA": s, "inner_margin_pp": s} for stochastic families (filled from the audit at freeze; sec. 6.4).
 """
-PHI_RES, MA_RES = 0.5, 3.5            # RESOLVED: phi lower >= 0.5 and M_A upper <= 3.5 pp
-U_SUB, MA_SUB = 4.0, 2.0              # SUBSTANTIAL: unrecovered opportunity lower >= 4.0 pp and M_A lower >= 2.0 pp
+PHI_RES, MA_RES = 0.5, 3.5
+U_SUB, MA_SUB = 4.0, 2.0
 MB_MIN = 1.0
 MIN_VALID = 5
+MIN_INFORMATIVE = 4
+TAU_FLOOR = 0.10
+I_UNITS, I_FOLDS = 16, 3            # informativeness: >= 16/20 units overall and >= 3/5 folds in every held-out family
+ROUTE_LO, ROUTE_HI = 0.01, 0.99
+GROUPS = {"linear": "l2head", "poly2": "l2head", "rff": "l2head", "lgbm": "trees", "mlp": "neural", "knn": "local"}
+STOCHASTIC = ("lgbm", "mlp")
+NOISE = None                        # filled at freeze from results/n1adp_audit/summary.json (sec. 6.4)
 NAMES = {"LIMIT": "OUTPUT-DECODER LIMITATION", "ROBUST": "PANEL-ROBUST OUTPUT AMBIGUITY", "SPECIFIC": "FAMILY-SPECIFIC",
          "INC_VALID": "INCONCLUSIVE (validity)", "INC": "INCONCLUSIVE"}
 
 
-def resolved(q):
-    return q["phi_ci"][0] >= PHI_RES and q["MA_ci"][1] <= MA_RES
+def noise(family, q, table=None):
+    t = NOISE if table is None else table
+    if family not in STOCHASTIC:
+        return 0.0
+    assert t is not None, "NOISE must be filled from the audit before N1a-DP is frozen"
+    return float(t[family][q])
 
 
-def substantial(q):
-    return q["U_ci"][0] >= U_SUB and q["MA_ci"][0] >= MA_SUB
+def tau(family, table=None):
+    return max(TAU_FLOOR, 2 * noise(family, "inner_margin_pp", table))
 
 
-def decide(per, MB, valid, bases=(2, 4)):
+def unit_passes(route_rate, inner_margin_pp, family, table=None):
+    return (ROUTE_LO <= route_rate <= ROUTE_HI) and inner_margin_pp >= tau(family, table)
+
+
+def informative(unit_pass_by_heldout):
+    """unit_pass_by_heldout: {heldout family: [bool per fold]} (4 x 5). >= 16/20 overall and >= 3/5 within every held-out family."""
+    total = sum(sum(v) for v in unit_pass_by_heldout.values())
+    return total >= I_UNITS and all(sum(v) >= I_FOLDS for v in unit_pass_by_heldout.values())
+
+
+def resolved(q, family, table=None):
+    return q["phi_ci"][0] - 2 * noise(family, "phi", table) >= PHI_RES and q["MA_ci"][1] + 2 * noise(family, "MA", table) <= MA_RES
+
+
+def substantial(q, family, table=None):
+    return q["U_ci"][0] - 2 * noise(family, "U", table) >= U_SUB and q["MA_ci"][0] - 2 * noise(family, "MA", table) >= MA_SUB
+
+
+def label(q, family, table=None):
+    return "RESOLVED" if resolved(q, family, table) else "SUBSTANTIAL" if substantial(q, family, table) else "INTERMEDIATE"
+
+
+def decide(per, MB, valid, info, validity_extra_ok=True, bases=(2, 4), table=None):
     V = sorted(valid)
-    lab = {f: {b: ("RESOLVED" if resolved(per[f][b]) else "SUBSTANTIAL" if substantial(per[f][b]) else "INTERMEDIATE") for b in bases} for f in per}
-    out = {"labels": lab, "valid_families": V}
-    if len(V) < MIN_VALID:
+    lab = {f: {b: label(per[f][b], f, table) for b in bases} for f in per}
+    out = {"labels": lab, "valid_families": V, "informative": info}
+    if len(V) < MIN_VALID or not validity_extra_ok:
         return dict(out, outcome="INC_VALID", name=NAMES["INC_VALID"])
     res_both = [f for f in V if all(lab[f][b] == "RESOLVED" for b in bases)]
     res_any = [f for f in V if any(lab[f][b] == "RESOLVED" for b in bases)]
-    sub_all = all(lab[f][b] == "SUBSTANTIAL" for f in V for b in bases)
-    out.update(resolved_both=res_both, resolved_any=res_any)
-    if len(res_both) >= 2:
+    inf_both = [f for f in V if all(info[f][b] for b in bases)]
+    out.update(resolved_both=res_both, resolved_any=res_any, informative_both=inf_both)
+    if len({GROUPS[f] for f in res_both}) >= 2:
         return dict(out, outcome="LIMIT", name=NAMES["LIMIT"])
-    if sub_all and not res_any and all(MB[b] >= MB_MIN for b in bases):
+    if (len(inf_both) >= MIN_INFORMATIVE and all(lab[f][b] == "SUBSTANTIAL" for f in inf_both for b in bases)
+            and not res_any and all(MB[b] >= MB_MIN for b in bases)):
         return dict(out, outcome="ROBUST", name=NAMES["ROBUST"])
     if res_any:
         return dict(out, outcome="SPECIFIC", name=NAMES["SPECIFIC"])
